@@ -38,7 +38,7 @@ export default function SignInPage() {
       } else {
         router.push("/dashboard")
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred")
     } finally {
       setIsLoading(false)
@@ -71,7 +71,7 @@ export default function SignInPage() {
         })
         router.push("/dashboard")
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred")
     } finally {
       setIsLoading(false)
@@ -87,19 +87,48 @@ export default function SignInPage() {
     setError("")
     
     try {
-      const result = await signIn("credentials", {
+      // First try to sign in with test user
+      let result = await signIn("credentials", {
         username: "testuser",
         password: "123456",
         redirect: false,
       })
 
+      // If login fails, try to create the test user first
       if (result?.error) {
-        setError("Quick login failed. Please try registering first.")
+        try {
+          // Create test user if it doesn't exist
+          const registerResponse = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              username: "testuser", 
+              password: "123456",
+              name: "Test User"
+            }),
+          })
+
+          if (registerResponse.ok) {
+            // Try to sign in again after registration
+            result = await signIn("credentials", {
+              username: "testuser",
+              password: "123456",
+              redirect: false,
+            })
+          }
+        } catch (registerErr) {
+          console.error("Error creating test user:", registerErr)
+        }
+      }
+
+      if (result?.error) {
+        setError("Quick login failed. Please try registering manually.")
       } else {
         router.push("/dashboard")
       }
     } catch (err) {
       setError("An error occurred")
+      console.error("Quick login error:", err)
     } finally {
       setIsLoading(false)
     }
