@@ -11,6 +11,8 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: env("DATABASE_URL"),
+    // Use DIRECT_URL for migrations (required for PgBouncer connection pooling)
+    // Use DATABASE_URL for application queries (connection pooling)
+    url: env("DIRECT_URL") || env("DATABASE_URL"),
   },
 });
