@@ -120,17 +120,21 @@ export default function SignInPage() {
         throw new Error("Supabase client not initialized")
       }
 
+      // Use a valid email format for test user
+      const testEmail = "testuser@test.com"
+      const testPassword = "123456"
+
       // Try to sign in with test user
-      let { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: "test@example.com",
-        password: "123456",
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: testEmail,
+        password: testPassword,
       })
 
       // If login fails, try to create the test user first
       if (signInError) {
         const { error: signUpError } = await supabase.auth.signUp({
-          email: "test@example.com",
-          password: "123456",
+          email: testEmail,
+          password: testPassword,
           options: {
             data: {
               name: "Test User",
@@ -139,23 +143,28 @@ export default function SignInPage() {
         })
 
         if (signUpError) {
-          setError(`Failed to create test user: ${signUpError.message}`)
+          // If email is still invalid, provide helpful error message
+          if (signUpError.message.includes("invalid") || signUpError.message.includes("Email")) {
+            setError(`Email không hợp lệ. Vui lòng đăng ký với email thật hoặc kiểm tra cấu hình Supabase.`)
+          } else {
+            setError(`Failed to create test user: ${signUpError.message}`)
+          }
         } else {
           // Try to sign in again after registration
-          const { data: signInData, error: retryError } = await supabase.auth.signInWithPassword({
-            email: "test@example.com",
-            password: "123456",
+          const { data: retrySignInData, error: retryError } = await supabase.auth.signInWithPassword({
+            email: testEmail,
+            password: testPassword,
           })
 
           if (retryError) {
             setError(`Failed to sign in: ${retryError.message}`)
-          } else if (signInData.user) {
-            await syncUserToDatabase(signInData.user)
+          } else if (retrySignInData?.user) {
+            await syncUserToDatabase(retrySignInData.user)
             router.push("/dashboard")
             router.refresh()
           }
         }
-      } else if (signInData.user) {
+      } else if (signInData?.user) {
         await syncUserToDatabase(signInData.user)
         router.push("/dashboard")
         router.refresh()
@@ -250,7 +259,7 @@ export default function SignInPage() {
               onClick={handleQuickLogin}
               disabled={isLoading}
             >
-              ⚡ Đăng nhập nhanh (Test User)
+              ⚡ Đăng nhập nhanh (Test User: testuser@test.com)
             </Button>
           </CardContent>
         </Card>
