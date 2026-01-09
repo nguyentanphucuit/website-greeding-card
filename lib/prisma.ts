@@ -4,6 +4,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+// Check if DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL is not set. Database operations will fail.')
+}
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
