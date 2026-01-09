@@ -23,7 +23,6 @@ interface AdminCard {
     id: string
     name: string | null
     email: string | null
-    username: string | null
   }
 }
 
@@ -146,7 +145,7 @@ export default function AdminPage() {
                       <div>
                         <CardTitle>{card.title}</CardTitle>
                         <CardDescription>
-                          Created by: {card.user.name || card.user.email || card.user.username || "Unknown"} •{" "}
+                          Created by: {card.user.name || card.user.email || "Unknown"} •{" "}
                           {new Date(card.createdAt).toLocaleString()}
                         </CardDescription>
                       </div>

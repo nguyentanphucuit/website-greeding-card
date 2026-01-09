@@ -16,7 +16,7 @@ export function useSupabaseAuth() {
     }
 
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -25,7 +25,7 @@ export function useSupabaseAuth() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)

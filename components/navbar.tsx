@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useSession, signOut } from "next-auth/react"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
+import { supabase } from "@/lib/supabase-client"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -13,7 +14,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export function Navbar() {
-  const { data: session } = useSession()
+  const { user } = useSupabaseAuth()
+
+  const handleSignOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut()
+      window.location.href = "/"
+    }
+  }
 
   return (
     <nav className="border-b bg-gradient-to-r from-blue-50 to-white">
@@ -69,4 +77,3 @@ export function Navbar() {
     </nav>
   )
 }
-
