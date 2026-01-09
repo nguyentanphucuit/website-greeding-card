@@ -10,61 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
+// User model syncs with Supabase Auth
+// userId in Card model refers to Supabase user.id (UUID)
 model User {
-  id            String    @id @default(cuid())
+  id            String    @id // Supabase user.id (UUID)
   name          String?
   email         String?   @unique
-  emailVerified DateTime?
   image         String?
-  password      String?
-  username      String?   @unique
-  role          String    @default("user") // user, admin
   plan          String    @default("free") // free, pro, enterprise
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
   cards         Card[]
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
 }
 
 model Card {
   id          String   @id @default(cuid())
-  userId      String
+  userId      String   // Supabase user.id (UUID)
   title       String
   text        String
   fontSize    Int      @default(24)

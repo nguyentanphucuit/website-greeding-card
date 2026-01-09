@@ -1,8 +1,8 @@
 "use client"
 
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Navbar } from "@/components/navbar"
 import { CardEditor } from "@/components/card-editor"
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Sparkles, Edit, Save, Download, RefreshCw } from "lucide-react"
 import html2canvas from "html2canvas"
 
 export default function CreatePage() {
-  const { data: session, status } = useSession()
+  const { user, loading } = useSupabaseAuth()
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
   const [userRequest, setUserRequest] = useState("")
@@ -43,10 +43,10 @@ export default function CreatePage() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!loading && !user) {
       router.push("/auth/signin")
     }
-  }, [status, router])
+  }, [loading, user, router])
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,7 +193,7 @@ export default function CreatePage() {
     textContainerOpacity?: number
     textColor?: string
   }) => {
-    if (!session) return
+    if (!user) return
 
     setIsSaving(true)
     try {
@@ -216,7 +216,7 @@ export default function CreatePage() {
     }
   }
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>
@@ -224,7 +224,7 @@ export default function CreatePage() {
     )
   }
 
-  if (!session) {
+  if (!user) {
     return null
   }
 

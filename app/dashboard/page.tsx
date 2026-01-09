@@ -1,8 +1,8 @@
 "use client"
 
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,7 @@ interface CardData {
 }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const { user, loading: authLoading } = useSupabaseAuth()
   const router = useRouter()
   const [cards, setCards] = useState<CardData[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,16 +41,16 @@ export default function DashboardPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!authLoading && !user) {
       router.push("/auth/signin")
     }
-  }, [status, router])
+  }, [authLoading, user, router])
 
   useEffect(() => {
-    if (session) {
+    if (user) {
       fetchCards()
     }
-  }, [session])
+  }, [user])
 
   const fetchCards = async () => {
     try {
@@ -162,7 +162,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (status === "loading" || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (!session) {
+  if (!user) {
     return null
   }
 

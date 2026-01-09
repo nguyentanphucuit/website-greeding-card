@@ -1,8 +1,8 @@
 "use client"
 
-import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,24 +28,23 @@ interface AdminCard {
 }
 
 export default function AdminPage() {
-  const { data: session, status } = useSession()
+  const { user, loading: authLoading } = useSupabaseAuth()
   const router = useRouter()
   const [cards, setCards] = useState<AdminCard[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (!authLoading && !user) {
       router.push("/auth/signin")
-    } else if (session && (session.user as any)?.role !== "admin") {
-      router.push("/dashboard")
     }
-  }, [status, session, router])
+    // Note: Admin check will be done via API route
+  }, [authLoading, user, router])
 
   useEffect(() => {
-    if (session && (session.user as any)?.role === "admin") {
+    if (user) {
       fetchCards()
     }
-  }, [session])
+  }, [user])
 
   const fetchCards = async () => {
     try {
@@ -77,7 +76,7 @@ export default function AdminPage() {
     }
   }
 
-  if (status === "loading" || loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Loading...</p>
@@ -85,7 +84,7 @@ export default function AdminPage() {
     )
   }
 
-  if (!session || (session.user as any)?.role !== "admin") {
+  if (!user) {
     return null
   }
 

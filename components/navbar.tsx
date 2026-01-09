@@ -23,7 +23,7 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          {session ? (
+          {user ? (
             <>
               <Link href="/create">
                 <Button variant="outline">Create Card</Button>
@@ -31,31 +31,26 @@ export function Navbar() {
               <Link href="/dashboard">
                 <Button variant="outline">Dashboard</Button>
               </Link>
-              {(session.user as any)?.role === "admin" && (
-                <Link href="/admin">
-                  <Button variant="outline">Admin</Button>
-                </Link>
-              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={session.user?.image || ""} alt={session.user?.name || ""} />
+                      <AvatarImage src={user.user_metadata?.avatar_url || ""} alt={user.email || ""} />
                       <AvatarFallback>
-                        {session.user?.name?.charAt(0).toUpperCase() || "U"}
+                        {user.email?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <div className="flex flex-col space-y-1 p-2">
-                    <p className="text-sm font-medium leading-none">{session.user?.name}</p>
+                    <p className="text-sm font-medium leading-none">{user.user_metadata?.name || user.email}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {session.user?.email}
+                      {user.email}
                     </p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => signOut()}>Sign Out</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>

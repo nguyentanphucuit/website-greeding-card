@@ -78,11 +78,34 @@ npx prisma generate && npm run build
 
 ## Post-Deployment Checklist
 
-- [ ] All environment variables are set
+- [ ] All environment variables are set (check all 7 required variables)
+- [ ] DATABASE_URL và DIRECT_URL đã được set đúng
+- [ ] AUTH_SECRET đã được generate mới (không dùng secret từ local)
+- [ ] AUTH_URL đã set thành production URL
 - [ ] Database connection is working (check Vercel logs)
+- [ ] Database tables exist (run `npx prisma migrate deploy` if needed)
 - [ ] Authentication is working (test sign in)
+- [ ] Quick login is working (test đăng nhập nhanh)
 - [ ] AI card generation is working (test create card)
-- [ ] Database tables exist (run `npx prisma db push` if needed)
+
+## Fix "Internal server error" khi deploy
+
+Nếu gặp lỗi "Internal server error" sau khi deploy:
+
+1. **Kiểm tra Vercel Logs**:
+   - Vercel Dashboard → Project → Deployments → Latest → Functions
+   - Xem error logs để biết lỗi cụ thể
+
+2. **Kiểm tra Environment Variables**:
+   - Đảm bảo TẤT CẢ 7 variables đã được set
+   - Check cả Production, Preview environments
+
+3. **Chạy Migration**:
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+4. **Xem file DEBUG_DEPLOYMENT.md** để biết chi tiết cách debug
 
 ## Troubleshooting
 
