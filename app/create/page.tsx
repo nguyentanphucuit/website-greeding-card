@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, useRef } from "react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
 import { CardEditor } from "@/components/card-editor"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -169,7 +170,8 @@ export default function CreatePage() {
         textColor: data.imageUrl ? "#ffffff" : undefined,
       })
       
-      setShowPreview(true)
+      // Go directly to editor after creation
+      setShowEditor(true)
     } catch (err: unknown) {
       console.error("Error generating card:", err)
       const errorMessage = err instanceof Error ? err.message : "Failed to generate card. Please try again."
@@ -283,7 +285,7 @@ export default function CreatePage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <main className="container mx-auto px-4 py-16">
+        <main className="container mx-auto px-4 pt-20 pb-16">
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-12">
               <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 bg-clip-text text-transparent">
@@ -348,7 +350,7 @@ export default function CreatePage() {
     return (
       <div className="min-h-screen">
         <Navbar />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 pt-20 pb-8">
           <div className="mb-6">
             <Button
               variant="ghost"
@@ -486,6 +488,7 @@ export default function CreatePage() {
             </Card>
           </div>
         </main>
+        <Footer />
       </div>
     )
   }
@@ -501,17 +504,14 @@ export default function CreatePage() {
               variant="ghost"
               onClick={() => {
                 setShowEditor(false)
+                setCardData(null)
+                setGeneratedData(undefined)
+                setUserRequest("")
               }}
               className="mb-4"
             >
-              ← Back to Preview
+              ← Back to Create
             </Button>
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-              Edit Your Card
-            </h1>
-            <p className="text-muted-foreground">
-              Based on: &quot;{userRequest}&quot;
-            </p>
           </div>
           <CardEditor 
             onSave={handleSave} 
@@ -520,6 +520,7 @@ export default function CreatePage() {
             initialData={cardData}
           />
         </main>
+        <Footer />
       </div>
     )
   }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
+import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Trash2, Edit, Download } from "lucide-react"
@@ -177,7 +178,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 pt-20 pb-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 bg-clip-text text-transparent">
             My Cards
@@ -293,6 +294,7 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
       </main>
+      <Footer />
     </div>
   )
 }

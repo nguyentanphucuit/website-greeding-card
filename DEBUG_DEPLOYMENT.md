@@ -94,3 +94,4 @@ npx prisma migrate deploy && npm run build
    - Check Vercel logs để xem lỗi cụ thể
    - Có thể do database connection hoặc missing environment variables
 
+

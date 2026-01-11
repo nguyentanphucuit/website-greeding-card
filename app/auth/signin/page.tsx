@@ -2,8 +2,13 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { supabase } from "@/lib/supabase-client"
 import type { User } from "@supabase/supabase-js"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Check, User as UserIcon, Mail, Lock, ArrowUpRight, Paperclip } from "lucide-react"
 
 async function syncUserToDatabase(user: User) {
   try {
@@ -21,11 +26,6 @@ async function syncUserToDatabase(user: User) {
     console.error("Failed to sync user to database:", error)
   }
 }
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Navbar } from "@/components/navbar"
 
 export default function SignInPage() {
   const router = useRouter()
@@ -33,7 +33,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(true) // Default to sign up
   const [name, setName] = useState("")
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -54,7 +54,6 @@ export default function SignInPage() {
       if (signInError) {
         setError(signInError.message)
       } else if (signInData.user) {
-        // Sync user to database
         await syncUserToDatabase(signInData.user)
         router.push("/dashboard")
         router.refresh()
@@ -89,9 +88,7 @@ export default function SignInPage() {
       if (signUpError) {
         setError(signUpError.message)
       } else if (signUpData.user) {
-        // Sync user to database
         await syncUserToDatabase(signUpData.user)
-        // Auto sign in after sign up
         const { data: autoSignInData, error: autoSignInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -111,7 +108,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleQuickLogin = async () => {
+  const handleSocialLogin = async (provider: "google" | "facebook" | "linkedin") => {
     setIsLoading(true)
     setError("")
 
@@ -120,150 +117,217 @@ export default function SignInPage() {
         throw new Error("Supabase client not initialized")
       }
 
-      // Use a valid email format for test user
-      const testEmail = "testuser@test.com"
-      const testPassword = "123456"
-
-      // Try to sign in with test user
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
+      const { error: socialError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
       })
 
-      // If login fails, try to create the test user first
-      if (signInError) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: testEmail,
-          password: testPassword,
-          options: {
-            data: {
-              name: "Test User",
-            },
-          },
-        })
-
-        if (signUpError) {
-          // If email is still invalid, provide helpful error message
-          if (signUpError.message.includes("invalid") || signUpError.message.includes("Email")) {
-            setError(`Email không hợp lệ. Vui lòng đăng ký với email thật hoặc kiểm tra cấu hình Supabase.`)
-          } else {
-            setError(`Failed to create test user: ${signUpError.message}`)
-          }
-        } else {
-          // Try to sign in again after registration
-          const { data: retrySignInData, error: retryError } = await supabase.auth.signInWithPassword({
-            email: testEmail,
-            password: testPassword,
-          })
-
-          if (retryError) {
-            setError(`Failed to sign in: ${retryError.message}`)
-          } else if (retrySignInData?.user) {
-            await syncUserToDatabase(retrySignInData.user)
-            router.push("/dashboard")
-            router.refresh()
-          }
-        }
-      } else if (signInData?.user) {
-        await syncUserToDatabase(signInData.user)
-        router.push("/dashboard")
-        router.refresh()
+      if (socialError) {
+        setError(socialError.message)
+        setIsLoading(false)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
-    } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <main className="container mx-auto px-4 py-16 flex items-center justify-center">
-        <Card className="w-full max-w-md border-blue-200 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-white rounded-t-lg">
-            <CardTitle className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
-              {isSignUp ? "Create Account" : "Sign In"}
-            </CardTitle>
-            <CardDescription>
-              {isSignUp
-                ? "Create a new account to start creating greeting cards"
-                : "Sign in to your account to continue"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name (Optional)</Label>
+    <div className="min-h-screen bg-gradient-to-b from-blue-100 via-blue-50 to-blue-100 relative overflow-hidden">
+      {/* Sparkle effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(30)].map((_, i) => {
+          const delay = Math.random() * 3
+          const duration = 2 + Math.random() * 3
+          return (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full opacity-60 animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${delay}s`,
+                animationDuration: `${duration}s`,
+              }}
+            />
+          )
+        })}
+      </div>
+
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-12">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-3">
+            Get Started
+          </h1>
+          <p className="text-lg text-gray-700 mb-4">
+            Create an Account to Start Making Beautiful Cards
+          </p>
+          <div className="flex items-center justify-center gap-2 text-gray-600">
+            <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+              <Check className="h-3 w-3 text-white" />
+            </div>
+            <span className="text-sm">No credit card required</span>
+          </div>
+        </div>
+
+        {/* Sign-Up Form Container */}
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+          {/* Social Sign-Up Section */}
+          <div className="mb-6">
+            <p className="text-gray-700 mb-4 text-center">
+              Sign Up with Go<span className="text-blue-500 inline-block">o</span>
+              <ArrowUpRight className="h-3 w-3 inline-block ml-0.5 text-blue-500" />
+            </p>
+            
+            <div className="grid grid-cols-4 gap-3 mb-4">
+              {/* Google */}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full aspect-square p-0 border-2 hover:border-blue-300"
+                onClick={() => handleSocialLogin("google")}
+                disabled={isLoading}
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+              </Button>
+
+              {/* Facebook */}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full aspect-square p-0 border-2 bg-blue-600 hover:bg-blue-700 border-blue-600"
+                onClick={() => handleSocialLogin("facebook")}
+                disabled={isLoading}
+              >
+                <span className="text-white font-bold text-xl">f</span>
+              </Button>
+
+              {/* LinkedIn */}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full aspect-square p-0 border-2 bg-blue-600 hover:bg-blue-700 border-blue-600"
+                onClick={() => handleSocialLogin("linkedin")}
+                disabled={isLoading}
+              >
+                <span className="text-white font-bold text-xs">in</span>
+              </Button>
+
+              {/* Paperclip */}
+              <Button
+                type="button"
+                variant="outline"
+                className="h-12 w-full aspect-square p-0 border-2 bg-gray-100 hover:bg-gray-200 border-gray-300"
+                disabled={isLoading}
+              >
+                <Paperclip className="h-5 w-5 text-gray-600" />
+              </Button>
+            </div>
+
+            {/* Separator */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-3 text-sm text-gray-600">or</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Traditional Sign-Up Form */}
+          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
-                    id="name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder="Name"
+                    className="pl-10 h-12 border-gray-300"
                   />
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="your@email.com"
+                  placeholder="your-email@example.com"
+                  className="pl-10 h-12 border-gray-300"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+            </div>
+
+            <div className="space-y-2">
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="Password"
+                  className="pl-10 h-12 border-gray-300"
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Create Account" : "Sign In")}
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-blue-600 hover:underline"
-              >
-                {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
-              </button>
             </div>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or</span>
-              </div>
-            </div>
+            )}
 
             <Button
-              type="button"
-              variant="default"
-              className="w-full"
-              onClick={handleQuickLogin}
+              type="submit"
+              className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg"
               disabled={isLoading}
             >
-              ⚡ Đăng nhập nhanh (Test User: testuser@test.com)
+              {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Sign Up" : "Sign In")}
             </Button>
-          </CardContent>
-        </Card>
-      </main>
+          </form>
+
+          {/* Login Prompt */}
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-sm text-gray-600"
+            >
+              Already have an account?{" "}
+              <span className="text-blue-600 hover:underline font-medium">Sign In</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

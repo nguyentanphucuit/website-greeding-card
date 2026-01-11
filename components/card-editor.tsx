@@ -20,9 +20,9 @@ interface CardData {
   backgroundColor: string
   backgroundImage?: string
   imageUrl?: string
-  textContainerBackground?: string // Background color for text container
-  textContainerOpacity?: number // Opacity of text container (0-1)
-  textColor?: string // Custom text color
+  textContainerBackground?: string
+  textContainerOpacity?: number
+  textColor?: string
 }
 
 interface CardEditorProps {
@@ -36,114 +36,40 @@ interface CardEditorProps {
     suggestedBackgroundColor?: string
   }
   onSave?: (data: CardData) => Promise<void>
+  onRegenerate?: (data: {
+    title?: string
+    text?: string
+    imageDescription?: string
+    imageUrl?: string | null
+    suggestedBackgroundColor?: string
+  }) => void
 }
 
 // Helper function to determine text color based on background color
 function getTextColor(backgroundColor: string): string {
-  // Light colors - use dark text
   const lightColors = [
     "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0", 
     "#f0fff4", "#f0f9ff", "#fff0f5", "#fff5f5", "#faf5ff"
   ]
   
   if (lightColors.includes(backgroundColor.toLowerCase())) {
-    return "#1a1a1a" // Dark text for light backgrounds
+    return "#1a1a1a"
   }
   
-  // Try to parse hex color and determine brightness
   const hex = backgroundColor.replace("#", "")
   const r = parseInt(hex.substr(0, 2), 16)
   const g = parseInt(hex.substr(2, 2), 16)
   const b = parseInt(hex.substr(4, 2), 16)
   const brightness = (r * 299 + g * 587 + b * 114) / 1000
   
-  return brightness > 128 ? "#1a1a1a" : "#ffffff" // Dark text on light, white text on dark
+  return brightness > 128 ? "#1a1a1a" : "#ffffff"
 }
 
-function generateCardFromRequest(request: string): CardData {
-  const lowerRequest = request.toLowerCase()
-  
-  // Determine card type and content
-  let title = "Greetings!"
-  let text = "Wishing you all the best!"
-  let backgroundColor = "#ffffff"
-  let fontFamily = "Arial"
-  
-  // Birthday
-  if (lowerRequest.includes("birthday") || lowerRequest.includes("bday")) {
-    title = "Happy Birthday!"
-    text = "Wishing you a wonderful day filled with joy and happiness!"
-    backgroundColor = "#fff5e6"
-  }
-  // Anniversary
-  else if (lowerRequest.includes("anniversary")) {
-    title = "Happy Anniversary!"
-    text = "Celebrating another year of love and happiness together!"
-    backgroundColor = "#ffe6f0"
-  }
-  // Wedding
-  else if (lowerRequest.includes("wedding") || lowerRequest.includes("marriage")) {
-    title = "Congratulations!"
-    text = "Wishing you a lifetime of love and happiness!"
-    backgroundColor = "#f0f0ff"
-  }
-  // Thank you
-  else if (lowerRequest.includes("thank") || lowerRequest.includes("thanks")) {
-    title = "Thank You!"
-    text = "Your kindness and generosity mean the world to me!"
-    backgroundColor = "#e6f3ff"
-  }
-  // Christmas
-  else if (lowerRequest.includes("christmas") || lowerRequest.includes("xmas")) {
-    title = "Merry Christmas!"
-    text = "Wishing you joy, peace, and happiness this holiday season!"
-    backgroundColor = "#ffe6e6"
-  }
-  // New Year
-  else if (lowerRequest.includes("new year")) {
-    title = "Happy New Year!"
-    text = "Wishing you health, happiness, and success in the coming year!"
-    backgroundColor = "#fff5e6"
-  }
-  
-  // Extract custom text if mentioned
-  if (lowerRequest.includes("say") || lowerRequest.includes("write")) {
-    const sayMatch = request.match(/(?:say|write|text)[:\s]+["']?([^"']+)["']?/i)
-    if (sayMatch && sayMatch[1]) {
-      text = sayMatch[1]
-    }
-  }
-  
-  // Color preferences
-  if (lowerRequest.includes("red")) backgroundColor = "#ffe6e6"
-  if (lowerRequest.includes("blue")) backgroundColor = "#e6f3ff"
-  if (lowerRequest.includes("pink")) backgroundColor = "#ffe6f0"
-  if (lowerRequest.includes("yellow")) backgroundColor = "#fff9e6"
-  if (lowerRequest.includes("green")) backgroundColor = "#e6ffe6"
-  
-  // Font preferences
-  if (lowerRequest.includes("elegant") || lowerRequest.includes("formal")) {
-    fontFamily = "Georgia"
-  } else if (lowerRequest.includes("modern") || lowerRequest.includes("bold")) {
-    fontFamily = "Verdana"
-  }
-  
-  return {
-    title,
-    text,
-    fontSize: 24,
-    fontFamily,
-    fontStyle: "normal",
-    backgroundColor,
-  }
-}
-
-export function CardEditor({ initialData, initialRequest, generatedData, onSave }: CardEditorProps) {
+export function CardEditor({ initialData, initialRequest, generatedData, onSave, onRegenerate }: CardEditorProps) {
   const [cardData, setCardData] = useState<CardData>(() => {
     if (initialData) {
       return initialData
     }
-    // Use Gemini generated data if available
     if (generatedData) {
       return {
         title: generatedData.title || "Greetings!",
@@ -151,16 +77,12 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
         fontSize: 24,
         fontFamily: "Arial",
         fontStyle: "normal",
-        backgroundColor: generatedData.suggestedBackgroundColor || "#fafafa", // Use suggested color or very light gray
+        backgroundColor: generatedData.suggestedBackgroundColor || "#fafafa",
         backgroundImage: generatedData.imageUrl || undefined,
-        textContainerBackground: generatedData.imageUrl ? "#000000" : undefined, // Dark background for text on images
-        textContainerOpacity: generatedData.imageUrl ? 0.6 : undefined, // Semi-transparent on images
-        textColor: generatedData.imageUrl ? "#ffffff" : undefined, // White text on images
+        textContainerBackground: generatedData.imageUrl ? "#000000" : undefined,
+        textContainerOpacity: generatedData.imageUrl ? 0.6 : undefined,
+        textColor: generatedData.imageUrl ? "#ffffff" : undefined,
       }
-    }
-    // Fallback to request-based generation
-    if (initialRequest) {
-      return generateCardFromRequest(initialRequest)
     }
     return {
       title: "Happy Birthday!",
@@ -171,6 +93,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
       backgroundColor: "#ffffff",
     }
   })
+
   const [backgroundImageFile, setBackgroundImageFile] = useState<File | null>(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(
     initialData?.backgroundImage || generatedData?.imageUrl || null
@@ -179,6 +102,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
     generatedData?.imageDescription || null
   )
   const [isSearchingImage, setIsSearchingImage] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -187,8 +111,6 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
       setBackgroundImageUrl(initialData.backgroundImage || null)
     }
     if (generatedData) {
-      console.log("CardEditor: received generatedData", generatedData)
-      // Update text content
       if (generatedData.title || generatedData.text) {
         setCardData(prev => ({
           ...prev,
@@ -196,20 +118,13 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
           text: generatedData.text || prev.text,
         }))
       }
-      // Update image
       if (generatedData.imageUrl) {
-        console.log("CardEditor: setting image URL", generatedData.imageUrl)
         setBackgroundImageUrl(generatedData.imageUrl)
         setCardData(prev => ({ ...prev, backgroundImage: generatedData.imageUrl || undefined }))
-      } else {
-        console.log("CardEditor: no imageUrl in generatedData")
       }
-      // Update background color if suggested
       if (generatedData.suggestedBackgroundColor) {
-        console.log("CardEditor: setting suggested background color", generatedData.suggestedBackgroundColor)
         setCardData(prev => ({ ...prev, backgroundColor: generatedData.suggestedBackgroundColor! }))
       }
-      // Store image description
       if (generatedData.imageDescription) {
         setImageDescription(generatedData.imageDescription)
       }
@@ -236,15 +151,9 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
         useCORS: true,
         allowTaint: true,
         logging: false,
-        // Better rendering for opacity
         foreignObjectRendering: false,
-        // Ensure all styles are captured
-        ignoreElements: (element) => {
-          // Don't ignore any elements
-          return false
-        },
       })
-      const url = canvas.toDataURL("image/png", 1.0) // Maximum quality
+      const url = canvas.toDataURL("image/png", 1.0)
       const link = document.createElement("a")
       link.download = `greeting-card-${Date.now()}.png`
       link.href = url
@@ -254,19 +163,92 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
     }
   }
 
-  const handleRegenerate = () => {
-    // Symbolic AI generation - just randomize some values
-    const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
-    const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
-    const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
-    const randomColor = colors[Math.floor(Math.random() * colors.length)]
-    
-    setCardData({
-      ...cardData,
-      fontFamily: randomFont,
-      backgroundColor: randomColor,
-      fontSize: Math.floor(Math.random() * 20) + 20,
-    })
+  const handleRegenerate = async () => {
+    if (!initialRequest || !initialRequest.trim()) {
+      // Fallback to old behavior if no request
+      const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
+      const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
+      const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
+      const randomColor = colors[Math.floor(Math.random() * colors.length)]
+      
+      setCardData({
+        ...cardData,
+        fontFamily: randomFont,
+        backgroundColor: randomColor,
+        fontSize: Math.floor(Math.random() * 20) + 20,
+      })
+      return
+    }
+
+    setIsRegenerating(true)
+    try {
+      const response = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userRequest: initialRequest }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate card: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      // Update card data with new generated content
+      const newGeneratedData = {
+        title: data.title,
+        text: data.text,
+        imageDescription: data.imageDescription,
+        imageUrl: data.imageUrl,
+        suggestedBackgroundColor: data.suggestedBackgroundColor,
+      }
+
+      // Update state
+      if (data.title || data.text) {
+        setCardData(prev => ({
+          ...prev,
+          title: data.title || prev.title,
+          text: data.text || prev.text,
+        }))
+      }
+
+      if (data.imageUrl) {
+        setBackgroundImageUrl(data.imageUrl)
+        setCardData(prev => ({ ...prev, backgroundImage: data.imageUrl }))
+      }
+
+      if (data.suggestedBackgroundColor) {
+        setCardData(prev => ({ ...prev, backgroundColor: data.suggestedBackgroundColor }))
+      }
+
+      if (data.imageDescription) {
+        setImageDescription(data.imageDescription)
+      }
+
+      // Update text container settings if image is present
+      if (data.imageUrl) {
+        setCardData(prev => ({
+          ...prev,
+          textContainerBackground: prev.textContainerBackground || "#000000",
+          textContainerOpacity: prev.textContainerOpacity ?? 0.6,
+          textColor: prev.textColor || "#ffffff",
+        }))
+      }
+
+      // Call onRegenerate callback if provided
+      if (onRegenerate) {
+        onRegenerate(newGeneratedData)
+      }
+    } catch (error) {
+      console.error("Error regenerating card:", error)
+      alert(error instanceof Error ? error.message : "Failed to regenerate card")
+    } finally {
+      setIsRegenerating(false)
+    }
   }
 
   const handleSave = async () => {
@@ -276,11 +258,12 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card>
+    <div className="flex gap-6 flex-col lg:flex-row">
+      {/* Left Column - Text Editing */}
+      <Card className="flex-shrink min-w-[280px] lg:w-80">
         <CardHeader>
-          <CardTitle>Card Editor</CardTitle>
-          <CardDescription>Customize your greeting card</CardDescription>
+          <CardTitle>Text Editor</CardTitle>
+          <CardDescription>Edit your card title and message</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -302,7 +285,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
             <div className="space-y-2">
               <Label htmlFor="fontSize">Font Size</Label>
               <Input
@@ -354,6 +337,148 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Text Color</Label>
+            <div className="flex gap-2">
+              <Input
+                type="color"
+                value={cardData.textColor || "#1a1a1a"}
+                onChange={(e) => setCardData({ ...cardData, textColor: e.target.value })}
+                className="w-20 h-10"
+              />
+              <Input
+                type="text"
+                value={cardData.textColor || "#1a1a1a"}
+                onChange={(e) => setCardData({ ...cardData, textColor: e.target.value })}
+                placeholder="#1a1a1a"
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t">
+            <Button 
+              onClick={handleRegenerate} 
+              variant="outline" 
+              className="w-full"
+              disabled={isRegenerating}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} />
+              {isRegenerating ? "Generating..." : "Re-generate"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Center Column - Preview (Fixed/Min Width) */}
+      <Card className="flex-1 min-w-[400px] lg:min-w-[500px]">
+        <CardHeader>
+          <CardTitle>Preview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div
+            ref={cardRef}
+            data-card-preview
+            className="w-full aspect-[4/3] rounded-lg p-8 flex flex-col items-center justify-center shadow-lg relative overflow-hidden mb-4"
+            style={{
+              backgroundColor: cardData.backgroundColor,
+              backgroundImage: backgroundImageUrl
+                ? `url(${backgroundImageUrl})`
+                : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            {/* Text Container with adjustable background - only show when there's an image */}
+            {backgroundImageUrl ? (
+              <div
+                className="px-8 py-6 rounded-lg"
+                style={{
+                  backgroundColor: (() => {
+                    const opacity = cardData.textContainerOpacity ?? 0.6
+                    const bgColor = cardData.textContainerBackground || "#000000"
+                    const hex = bgColor.replace("#", "")
+                    const r = parseInt(hex.substr(0, 2), 16)
+                    const g = parseInt(hex.substr(2, 2), 16)
+                    const b = parseInt(hex.substr(4, 2), 16)
+                    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+                  })(),
+                  maxWidth: "90%",
+                  opacity: "1",
+                }}
+              >
+                <h2
+                  className="text-2xl font-bold mb-4 text-center"
+                  style={{
+                    fontFamily: cardData.fontFamily,
+                    fontSize: `${cardData.fontSize * 1.1}px`,
+                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
+                    fontWeight: "bold",
+                    color: cardData.textColor || "#ffffff",
+                    textShadow: "2px 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3)",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  {cardData.title}
+                </h2>
+                <p
+                  className="text-center"
+                  style={{
+                    fontFamily: cardData.fontFamily,
+                    fontSize: `${cardData.fontSize}px`,
+                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
+                    fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
+                    color: cardData.textColor || "#ffffff",
+                  }}
+                >
+                  {cardData.text}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h2
+                  className="text-2xl font-bold mb-4 text-center"
+                  style={{
+                    fontFamily: cardData.fontFamily,
+                    fontSize: `${cardData.fontSize * 1.1}px`,
+                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
+                    fontWeight: "bold",
+                    color: cardData.textColor || getTextColor(cardData.backgroundColor),
+                    textShadow: "1px 1px 2px rgba(0,0,0,0.2)",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  {cardData.title}
+                </h2>
+                <p
+                  className="text-center"
+                  style={{
+                    fontFamily: cardData.fontFamily,
+                    fontSize: `${cardData.fontSize}px`,
+                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
+                    fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
+                    color: cardData.textColor || getTextColor(cardData.backgroundColor),
+                  }}
+                >
+                  {cardData.text}
+                </p>
+              </>
+            )}
+          </div>
+          {initialRequest && (
+            <p className="text-sm text-muted-foreground text-center mt-4">
+              Based on: &quot;{initialRequest}&quot;
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Right Column - All Other Controls */}
+      <Card className="flex-shrink min-w-[280px] lg:w-80">
+        <CardHeader>
+          <CardTitle>Card Editor</CardTitle>
+          <CardDescription>Customize your greeting card</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="backgroundImage">Background Image</Label>
             {imageDescription && (
@@ -453,145 +578,21 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave 
                   onChange={(e) => setCardData({ ...cardData, textContainerOpacity: parseFloat(e.target.value) })}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label>Text Color</Label>
-                <p className="text-xs text-muted-foreground">Color of the text</p>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={cardData.textColor || "#ffffff"}
-                    onChange={(e) => setCardData({ ...cardData, textColor: e.target.value })}
-                    className="w-20 h-10"
-                  />
-                  <Input
-                    type="text"
-                    value={cardData.textColor || "#ffffff"}
-                    onChange={(e) => setCardData({ ...cardData, textColor: e.target.value })}
-                    placeholder="#ffffff"
-                  />
-                </div>
-              </div>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button onClick={handleRegenerate} variant="outline" className="flex-1">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Re-generate
-            </Button>
-            <Button onClick={handleSave} className="flex-1">
+          <div className="flex gap-2 pt-4 border-t">
+            <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700">
               <Save className="mr-2 h-4 w-4" />
               Save
             </Button>
-            <Button onClick={handleExport} variant="default" className="flex-1">
+            <Button onClick={handleExport} className="flex-1 bg-blue-600 hover:bg-blue-700">
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Preview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div
-            ref={cardRef}
-            className="w-full aspect-[4/3] rounded-lg p-8 flex flex-col items-center justify-center shadow-lg relative overflow-hidden"
-            style={{
-              backgroundColor: cardData.backgroundColor,
-              backgroundImage: backgroundImageUrl
-                ? `url(${backgroundImageUrl})`
-                : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          >
-            {/* Text Container with adjustable background - only show when there's an image */}
-            {backgroundImageUrl ? (
-              <div
-                className="px-8 py-6 rounded-lg"
-                style={{
-                  backgroundColor: (() => {
-                    const opacity = cardData.textContainerOpacity ?? 0.6
-                    const bgColor = cardData.textContainerBackground || "#000000"
-                    // Convert hex to rgba - ensure opacity is properly applied
-                    const hex = bgColor.replace("#", "")
-                    const r = parseInt(hex.substr(0, 2), 16)
-                    const g = parseInt(hex.substr(2, 2), 16)
-                    const b = parseInt(hex.substr(4, 2), 16)
-                    // Use rgba with explicit opacity value
-                    return `rgba(${r}, ${g}, ${b}, ${opacity})`
-                  })(),
-                  maxWidth: "90%",
-                  // Ensure opacity is applied correctly for export
-                  opacity: "1", // Keep element fully opaque, use rgba alpha instead
-                }}
-              >
-                <h2
-                  className="text-2xl font-bold mb-4 text-center"
-                  style={{
-                    fontFamily: cardData.fontFamily,
-                    fontSize: `${cardData.fontSize * 1.1}px`, // Larger than before
-                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                    fontWeight: "bold", // Always bold for title
-                    color: cardData.textColor || "#ffffff",
-                    textShadow: "2px 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3)", // Stronger shadow
-                    letterSpacing: "0.5px", // Slightly more spacing
-                  }}
-                >
-                  {cardData.title}
-                </h2>
-                <p
-                  className="text-center"
-                  style={{
-                    fontFamily: cardData.fontFamily,
-                    fontSize: `${cardData.fontSize}px`,
-                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                    fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
-                    color: cardData.textColor || "#ffffff",
-                  }}
-                >
-                  {cardData.text}
-                </p>
-              </div>
-            ) : (
-              // No image - show text directly
-              <>
-                <h2
-                  className="text-2xl font-bold mb-4 text-center"
-                  style={{
-                    fontFamily: cardData.fontFamily,
-                    fontSize: `${cardData.fontSize * 1.1}px`, // Larger than before
-                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                    fontWeight: "bold", // Always bold for title
-                    color: cardData.textColor || getTextColor(cardData.backgroundColor),
-                    textShadow: "1px 1px 2px rgba(0,0,0,0.2)", // Subtle shadow for contrast
-                    letterSpacing: "0.5px", // Slightly more spacing
-                  }}
-                >
-                  {cardData.title}
-                </h2>
-                <p
-                  className="text-center"
-                  style={{
-                    fontFamily: cardData.fontFamily,
-                    fontSize: `${cardData.fontSize}px`,
-                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                    fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
-                    color: cardData.textColor || getTextColor(cardData.backgroundColor),
-                  }}
-                >
-                  {cardData.text}
-                </p>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
-
