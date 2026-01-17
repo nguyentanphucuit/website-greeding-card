@@ -23,14 +23,17 @@ interface CardData {
   id: string
   title: string
   text: string
-  fontSize: number
-  fontFamily: string
-  fontStyle: string
-  backgroundColor: string
-  backgroundImage?: string
-  imageUrl?: string
-  createdAt: string
-  updatedAt: string
+  font_size: number
+  font_family: string
+  font_style: string
+  background_color: string
+  background_image?: string | null
+  text_color: string
+  text_container_background: string
+  text_container_opacity: number
+  initial_request?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export default function DashboardPage() {
@@ -115,7 +118,7 @@ export default function DashboardPage() {
     preview.style.backgroundColor = card.backgroundColor
     if (card.backgroundImage) {
       preview.style.backgroundImage = `url(${card.backgroundImage})`
-      preview.style.backgroundSize = "cover"
+    preview.style.backgroundSize = "cover"
       preview.style.backgroundPosition = "center"
     }
     preview.style.backgroundPosition = "center"
@@ -148,7 +151,7 @@ export default function DashboardPage() {
 
     try {
       const canvas = await html2canvas(preview, {
-        backgroundColor: card.backgroundColor,
+        backgroundColor: card.background_color,
         scale: 2,
       })
       const url = canvas.toDataURL("image/png")
@@ -204,16 +207,16 @@ export default function DashboardPage() {
                 <CardHeader>
                   <CardTitle className="truncate">{card.title}</CardTitle>
                   <CardDescription>
-                    Created {new Date(card.createdAt).toLocaleDateString()}
+                    Created {new Date(card.created_at).toLocaleDateString()}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div
                     className="w-full aspect-[4/3] rounded-lg p-4 flex flex-col items-center justify-center mb-4"
                     style={{
-                      backgroundColor: card.backgroundColor,
-                      backgroundImage: card.backgroundImage
-                        ? `url(${card.backgroundImage})`
+                      backgroundColor: card.background_color,
+                      backgroundImage: card.background_image
+                        ? `url(${card.background_image})`
                         : undefined,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
@@ -222,10 +225,10 @@ export default function DashboardPage() {
                     <h3
                       className="text-lg font-bold mb-2 text-center"
                       style={{
-                        fontFamily: card.fontFamily,
-                        fontSize: `${card.fontSize * 0.6}px`,
-                        fontStyle: card.fontStyle.includes("italic") ? "italic" : "normal",
-                        fontWeight: card.fontStyle.includes("bold") ? "bold" : "normal",
+                        fontFamily: card.font_family,
+                        fontSize: `${card.font_size * 0.6}px`,
+                        fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
+                        fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
                       }}
                     >
                       {card.title}
@@ -233,14 +236,14 @@ export default function DashboardPage() {
                     <p
                       className="text-center text-sm"
                       style={{
-                        fontFamily: card.fontFamily,
-                        fontSize: `${card.fontSize * 0.5}px`,
-                        fontStyle: card.fontStyle.includes("italic") ? "italic" : "normal",
-                        fontWeight: card.fontStyle.includes("bold") ? "bold" : "normal",
+                        fontFamily: card.font_family,
+                        fontSize: `${card.font_size * 0.5}px`,
+                        fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
+                        fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
                         color:
-                          card.backgroundColor === "#ffffff" ||
-                          card.backgroundColor === "#f0f0f0" ||
-                          card.backgroundColor === "#fff5e6"
+                          card.background_color === "#ffffff" ||
+                          card.background_color === "#f0f0f0" ||
+                          card.background_color === "#fff5e6"
                             ? "#000000"
                             : "#ffffff",
                       }}

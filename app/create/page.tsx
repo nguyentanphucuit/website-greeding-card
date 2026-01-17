@@ -495,34 +495,34 @@ export default function CreatePage() {
 
   // Editor mode - show full editor
   if (showEditor && cardData) {
-    return (
-      <div className="min-h-screen">
-        <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setShowEditor(false)
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setShowEditor(false)
                 setCardData(null)
                 setGeneratedData(undefined)
-                setUserRequest("")
-              }}
-              className="mb-4"
-            >
+              setUserRequest("")
+            }}
+            className="mb-4"
+          >
               ← Back to Create
-            </Button>
-          </div>
-          <CardEditor 
-            onSave={handleSave} 
-            initialRequest={userRequest}
-            generatedData={generatedData}
+          </Button>
+        </div>
+        <CardEditor 
+          onSave={handleSave} 
+          initialRequest={userRequest}
+          generatedData={generatedData}
             initialData={cardData}
-          />
-        </main>
+        />
+      </main>
         <Footer />
-      </div>
-    )
+    </div>
+  )
   }
 
   return null

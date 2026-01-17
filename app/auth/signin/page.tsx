@@ -97,7 +97,7 @@ export default function SignInPage() {
         if (autoSignInError) {
           setError(autoSignInError.message)
         } else if (autoSignInData.user) {
-          router.push("/dashboard")
+        router.push("/dashboard")
           router.refresh()
         }
       }
@@ -111,7 +111,7 @@ export default function SignInPage() {
   const handleSocialLogin = async (provider: "google" | "facebook" | "linkedin") => {
     setIsLoading(true)
     setError("")
-
+    
     try {
       if (!supabase) {
         throw new Error("Supabase client not initialized")
@@ -171,7 +171,7 @@ export default function SignInPage() {
             </div>
             <span className="text-sm">No credit card required</span>
           </div>
-        </div>
+                  </div>
 
         {/* Sign-Up Form Container */}
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
@@ -253,47 +253,47 @@ export default function SignInPage() {
                 <span className="bg-white px-3 text-sm text-gray-600">or</span>
               </div>
             </div>
-          </div>
+                  </div>
 
           {/* Traditional Sign-Up Form */}
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-2">
+                  <div className="space-y-2">
                 <div className="relative">
                   <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <Input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    <Input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
                     placeholder="Name"
                     className="pl-10 h-12 border-gray-300"
-                  />
-                </div>
+                    />
+                  </div>
               </div>
             )}
 
-            <div className="space-y-2">
+                  <div className="space-y-2">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder="your-email@example.com"
                   className="pl-10 h-12 border-gray-300"
-                />
-              </div>
-            </div>
+                    />
+                  </div>
+                  </div>
 
-            <div className="space-y-2">
+                  <div className="space-y-2">
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
                   placeholder="Password"
                   className="pl-10 h-12 border-gray-300"
                 />

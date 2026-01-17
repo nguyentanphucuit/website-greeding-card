@@ -166,17 +166,17 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
   const handleRegenerate = async () => {
     if (!initialRequest || !initialRequest.trim()) {
       // Fallback to old behavior if no request
-      const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
-      const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
-      const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
-      const randomColor = colors[Math.floor(Math.random() * colors.length)]
-      
-      setCardData({
-        ...cardData,
-        fontFamily: randomFont,
-        backgroundColor: randomColor,
-        fontSize: Math.floor(Math.random() * 20) + 20,
-      })
+    const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
+    const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
+    const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
+    const randomColor = colors[Math.floor(Math.random() * colors.length)]
+    
+    setCardData({
+      ...cardData,
+      fontFamily: randomFont,
+      backgroundColor: randomColor,
+      fontSize: Math.floor(Math.random() * 20) + 20,
+    })
       return
     }
 
@@ -547,7 +547,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
               <div className="space-y-2">
                 <Label>Text Container Background</Label>
                 <p className="text-xs text-muted-foreground">Background color for text box (helps text stand out on images)</p>
-                <div className="flex gap-2">
+          <div className="flex gap-2">
                   <Input
                     type="color"
                     value={cardData.textContainerBackground || "#000000"}

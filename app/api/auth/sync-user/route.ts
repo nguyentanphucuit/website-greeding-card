@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { syncUser } from "@/lib/supabase-db"
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,20 +11,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert user to database
-    const user = await prisma.user.upsert({
-      where: { id },
-      update: {
-        email: email || undefined,
-        name: name || undefined,
-        image: image || undefined,
-      },
-      create: {
-        id,
-        email: email || null,
-        name: name || null,
-        image: image || null,
-      },
+    const user = await syncUser({
+      id,
+      email: email || null,
+      name: name || null,
+      image: image || null,
     })
+
+    if (!user) {
+      return NextResponse.json({ error: "Failed to sync user" }, { status: 500 })
+    }
 
     return NextResponse.json(user)
   } catch (error) {
@@ -32,5 +28,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
-
