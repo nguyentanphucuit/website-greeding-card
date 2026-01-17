@@ -134,6 +134,38 @@ export default function SignInPage() {
     }
   }
 
+  const handleQuickLogin = async () => {
+    setIsLoading(true)
+    setError("")
+
+    try {
+      if (!supabase) {
+        throw new Error("Supabase client not initialized")
+      }
+
+      // Test user credentials
+      const testEmail = "testuser@test.com"
+      const testPassword = "test123456"
+
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: testEmail,
+        password: testPassword,
+      })
+
+      if (signInError) {
+        setError(signInError.message)
+      } else if (signInData.user) {
+        await syncUserToDatabase(signInData.user)
+        router.push("/dashboard")
+        router.refresh()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-100 via-blue-50 to-blue-100 relative overflow-hidden">
       {/* Sparkle effects */}
@@ -312,6 +344,17 @@ export default function SignInPage() {
               disabled={isLoading}
             >
               {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Sign Up" : "Sign In")}
+            </Button>
+
+            {/* Quick Login for Testing */}
+            <Button
+              type="button"
+              onClick={handleQuickLogin}
+              variant="outline"
+              className="w-full h-12 border-2 border-blue-300 text-blue-600 hover:bg-blue-50 font-semibold rounded-lg"
+              disabled={isLoading}
+            >
+              🚀 Quick Login (Test User)
             </Button>
           </form>
 
