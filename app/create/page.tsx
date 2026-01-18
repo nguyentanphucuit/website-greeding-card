@@ -485,13 +485,13 @@ export default function CreatePage() {
                             onClick={() => handlePromptSelect(prompt)}
                             disabled={isGenerating}
                           >
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2">
                               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
                                 {index + 1}
                               </span>
                               <span className="text-xs font-semibold">Gợi ý {index + 1}</span>
                             </div>
-                            <span className="text-sm">{prompt}</span>
+                            <span className="text-sm mt-2">{prompt}</span>
                           </Button>
                         ))}
                       </div>

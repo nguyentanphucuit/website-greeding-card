@@ -5,8 +5,9 @@ import { useEffect, useState, useCallback } from "react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trash2, Users, CreditCard, LogOut } from "lucide-react"
+import { Trash2, Users, CreditCard, LogOut, Edit } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { supabase } from "@/lib/supabase-client"
 
 interface AdminCard {
@@ -39,13 +40,61 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [activeMenu, setActiveMenu] = useState<MenuItem>("greeting-cards")
   const [users, setUsers] = useState<Array<{id: string, name: string | null, email: string | null, plan: string, role: string, created_at: string}>>([])
-
+  
+  // Pagination states
+  const [cardsPage, setCardsPage] = useState(1)
+  const [usersPage, setUsersPage] = useState(1)
+  const itemsPerPage = 10
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/auth/signin")
+      return
     }
-    // Note: Admin check will be done via API route
+    
+    // Simple check: if not admin@gmail.com, redirect to dashboard
+    if (user && !authLoading) {
+      if (user.email?.toLowerCase().trim() !== 'admin@gmail.com') {
+        router.push("/dashboard")
+      }
+    }
   }, [authLoading, user, router])
+
+  const handleEdit = (card: AdminCard) => {
+    // Store card data in sessionStorage to pass to create page
+    const cardData = {
+      id: card.id,
+      title: card.title,
+      text: card.text,
+      fontSize: card.font_size,
+      fontFamily: card.font_family,
+      fontStyle: card.font_style,
+      backgroundColor: card.background_color,
+      backgroundImage: card.background_image,
+      textColor: card.text_color,
+      textContainerBackground: card.text_container_background,
+      textContainerOpacity: card.text_container_opacity,
+      initialRequest: card.initial_request,
+    }
+    
+    sessionStorage.setItem("editCardData", JSON.stringify(cardData))
+    router.push("/create")
+  }
+
+  // Pagination helpers
+  const getPaginatedCards = () => {
+    const startIndex = (cardsPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return cards.slice(startIndex, endIndex)
+  }
+
+  const getPaginatedUsers = () => {
+    const startIndex = (usersPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return users.slice(startIndex, endIndex)
+  }
+
+  const totalCardsPages = Math.ceil(cards.length / itemsPerPage)
+  const totalUsersPages = Math.ceil(users.length / itemsPerPage)
 
   const fetchCards = useCallback(async () => {
     try {
@@ -129,7 +178,7 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <aside className="w-80 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
             Admin Panel
@@ -223,76 +272,66 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {cards.map((card) => (
-                <Card key={card.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle>{card.title}</CardTitle>
-                        <CardDescription>
-                          Created by: {card.user.name || card.user.email || "Unknown"} •{" "}
-                          {new Date(card.created_at).toLocaleString()}
-                        </CardDescription>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(card.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div
-                      className="w-full aspect-[4/3] rounded-lg p-4 flex flex-col items-center justify-center mb-4"
-                      style={{
-                        backgroundColor: card.background_color,
-                        backgroundImage: card.background_image
-                          ? `url(${card.background_image})`
-                          : undefined,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      <h3
-                        className="text-lg font-bold mb-2 text-center"
-                        style={{
-                          fontFamily: card.font_family,
-                          fontSize: `${card.font_size * 0.6}px`,
-                          fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
-                          fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
-                        }}
-                      >
-                        {card.title}
-                      </h3>
-                      <p
-                        className="text-center text-sm"
-                        style={{
-                          fontFamily: card.font_family,
-                          fontSize: `${card.font_size * 0.5}px`,
-                          fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
-                          fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
-                          color:
-                            card.background_color === "#ffffff" ||
-                            card.background_color === "#f0f0f0" ||
-                            card.background_color === "#fff5e6"
-                              ? "#000000"
-                              : "#ffffff",
-                        }}
-                      >
-                        {card.text}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge variant="outline">Font: {card.font_family}</Badge>
-                      <Badge variant="outline">Size: {card.font_size}px</Badge>
-                      <Badge variant="outline">Style: {card.font_style}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[60px]">Preview</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Text</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Font Family</TableHead>
+                    <TableHead className="w-[80px]">Size</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {getPaginatedCards().map((card) => (
+                    <TableRow key={card.id}>
+                      <TableCell>
+                        <div
+                          className="w-14 h-14 rounded flex items-center justify-center"
+                          style={{
+                            backgroundColor: card.background_color,
+                            backgroundImage: card.background_image ? `url(${card.background_image})` : undefined,
+                            backgroundSize: "cover",
+                            backgroundPosition: "center",
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{card.title}</TableCell>
+                      <TableCell className="max-w-[300px] truncate">{card.text}</TableCell>
+                      <TableCell>{card.user.name || card.user.email || "Unknown"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{card.font_family}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">{card.font_size}px</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(card.created_at).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(card)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(card.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
             </div>
@@ -300,15 +339,18 @@ export default function AdminPage() {
           )}
 
           {activeMenu === "users" && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
-                Users
-              </h2>
+            <>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
+                  Users Management
+                </h2>
+              </div>
+              
               <Card>
                 <CardHeader>
                   <CardTitle>All Users</CardTitle>
                   <CardDescription>
-                    View and manage all registered users
+                    Total {users.length} registered users
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -317,29 +359,93 @@ export default function AdminPage() {
                   ) : users.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">No users found.</p>
                   ) : (
-                    <div className="space-y-3">
-                      {users.map((userItem) => {
-                        const userCards = cards.filter(c => c.user.id === userItem.id)
-                        return (
-                          <div
-                            key={userItem.id}
-                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                          >
-                            <div>
-                              <p className="font-medium">{userItem.name || "Unknown"}</p>
-                              <p className="text-sm text-gray-500">{userItem.email}</p>
-                              <p className="text-xs text-gray-400 mt-1">
-                                {userCards.length} card{userCards.length !== 1 ? "s" : ""}
-                              </p>
-                            </div>
-                          </div>
-                        )
-                      })}
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Plan</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead className="w-[100px]">Cards</TableHead>
+                            <TableHead>Joined</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getPaginatedUsers().map((userItem) => {
+                            const userCards = cards.filter(c => c.user.id === userItem.id)
+                            return (
+                              <TableRow key={userItem.id}>
+                                <TableCell className="font-medium">
+                                  {userItem.name || "Unknown"}
+                                </TableCell>
+                                <TableCell>{userItem.email}</TableCell>
+                                <TableCell>
+                                  <Badge variant={userItem.plan === "pro" ? "default" : "secondary"}>
+                                    {userItem.plan}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={userItem.role === "admin" ? "destructive" : "outline"}>
+                                    {userItem.role}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-center font-semibold">
+                                  {userCards.length}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {new Date(userItem.created_at).toLocaleDateString()}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                  
+                  {/* Pagination for Users */}
+                  {users.length > itemsPerPage && (
+                    <div className="flex items-center justify-between mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((usersPage - 1) * itemsPerPage) + 1} to {Math.min(usersPage * itemsPerPage, users.length)} of {users.length} users
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUsersPage(p => Math.max(1, p - 1))}
+                          disabled={usersPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalUsersPages }, (_, i) => i + 1).map(page => (
+                            <Button
+                              key={page}
+                              variant={page === usersPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setUsersPage(page)}
+                              className="w-10"
+                            >
+                              {page}
+                            </Button>
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setUsersPage(p => Math.min(totalUsersPages, p + 1))}
+                          disabled={usersPage === totalUsersPages}
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </div>
+            </>
           )}
         </div>
       </main>

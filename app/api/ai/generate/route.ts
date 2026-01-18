@@ -112,9 +112,11 @@ export async function POST(request: NextRequest) {
 
 Generate 3 different, creative, and detailed prompts for creating greeting card background images. Each prompt should:
 - Be unique and offer a different visual style (e.g., minimalist, luxurious, cute, modern, classic)
-- Include specific design elements, colors, and mood
+- Include specific design elements, colors, materials/textures, lighting, and mood
 - Be detailed enough for AI image generation (include style, colors, composition, mood)
-- Be suitable for a greeting card background (vertical A5 ratio, space for text)
+- Be suitable for a greeting card background (LANDSCAPE A5 ratio ~1.414:1, clear negative space reserved for text)
+- No text, no letters, no numbers, no watermark, no logo
+- Print-ready look (clean edges, subtle grain, avoid clutter, high-quality)
 
 Format your response as JSON array:
 {
@@ -124,6 +126,7 @@ Format your response as JSON array:
     "Third detailed prompt here..."
   ]
 }`
+
 
       console.log("Generating 3 prompt options...")
       const promptsResponse = await ai.models.generateContent({

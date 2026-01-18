@@ -45,26 +45,12 @@ export default function SignInPage() {
     })))
   }, [])
 
-  const checkAdminAndRedirect = async () => {
-    try {
-      const response = await fetch("/api/auth/check-admin", {
-        credentials: "include", // Send cookies for authentication
-      })
-      if (response.ok) {
-        const { isAdmin } = await response.json()
-        if (isAdmin) {
-          router.push("/admin")
-        } else {
-          router.push("/dashboard")
-        }
-      } else {
-        router.push("/dashboard")
-      }
-      router.refresh()
-    } catch (err) {
-      console.error("Error checking admin status:", err)
+  const checkAdminAndRedirect = async (email: string) => {
+    // Simple: Check if email is admin@gmail.com
+    if (email.toLowerCase().trim() === 'admin@gmail.com') {
+      router.push("/admin")
+    } else {
       router.push("/dashboard")
-      router.refresh()
     }
   }
 
@@ -87,7 +73,7 @@ export default function SignInPage() {
         setError(signInError.message)
       } else if (signInData.user) {
         await syncUserToDatabase(signInData.user)
-        await checkAdminAndRedirect()
+        await checkAdminAndRedirect(signInData.user.email || '')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -128,7 +114,7 @@ export default function SignInPage() {
         if (autoSignInError) {
           setError(autoSignInError.message)
         } else if (autoSignInData.user) {
-          await checkAdminAndRedirect()
+          await checkAdminAndRedirect(autoSignInData.user.email || '')
         }
       }
     } catch (err) {
@@ -188,7 +174,7 @@ export default function SignInPage() {
         setError(signInError.message)
       } else if (signInData.user) {
         await syncUserToDatabase(signInData.user)
-        await checkAdminAndRedirect()
+        await checkAdminAndRedirect(signInData.user.email || '')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")

@@ -6,13 +6,18 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getUser(request)
     if (!user) {
+      console.log("check-admin: No user")
       return NextResponse.json({ isAdmin: false }, { status: 200 })
     }
     
-    const adminStatus = await isUserAdmin(user.id)
-    return NextResponse.json({ isAdmin: adminStatus })
+    console.log("check-admin: User found - id:", user.id, "email:", user.email)
+    
+    const isAdmin = await isUserAdmin(user.id)
+    console.log("check-admin: isAdmin:", isAdmin)
+    
+    return NextResponse.json({ isAdmin })
   } catch (error) {
-    console.error("Error checking admin status:", error)
+    console.error("check-admin error:", error)
     return NextResponse.json({ isAdmin: false }, { status: 200 })
   }
 }

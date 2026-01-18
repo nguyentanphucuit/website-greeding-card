@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
+    console.log('Sync user request:', { id, email, name, image: !!image })
+
     // Upsert user to database
     const user = await syncUser({
       id,
@@ -19,12 +21,17 @@ export async function POST(request: NextRequest) {
     })
 
     if (!user) {
+      console.error("Failed to sync user: syncUser returned null")
       return NextResponse.json({ error: "Failed to sync user" }, { status: 500 })
     }
 
+    console.log('User synced successfully:', user.id)
     return NextResponse.json(user)
   } catch (error) {
     console.error("Error syncing user:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Internal server error",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 })
   }
 }

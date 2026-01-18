@@ -25,6 +25,9 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY="sb_publishable_SVQcm6Q3-a7XpPMO9bn
 # Optional: Google OAuth
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
+
+# Admin Access
+NEXT_ADMIN_ID="admin@gmail.com"  # Email of admin user who can access /admin page
 ```
 
 ## Vercel Deployment

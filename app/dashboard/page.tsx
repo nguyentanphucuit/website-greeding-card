@@ -123,7 +123,7 @@ export default function DashboardPage() {
     
     // Navigate to create page
     router.push("/create")
-  }
+    }
 
 
 
@@ -246,8 +246,8 @@ export default function DashboardPage() {
                       <>
                         <h2
                           className="font-bold text-center"
-                          style={{
-                            fontFamily: card.font_family,
+                      style={{
+                        fontFamily: card.font_family,
                             // Scale font: font_size * 1.1 -> proportional
                             fontSize: `clamp(${(card.font_size * 1.1 * 0.4).toFixed(1)}px, ${(card.font_size * 1.1 * 0.65).toFixed(1)}px, ${card.font_size * 1.1}px)`,
                             fontStyle: (card.font_style || "normal").includes("italic") ? "italic" : "normal",
@@ -257,21 +257,21 @@ export default function DashboardPage() {
                             textShadow: "clamp(0.4px, 0.08vw, 0.5px) clamp(0.4px, 0.08vw, 0.5px) clamp(0.8px, 0.15vw, 1px) rgba(0,0,0,0.2)",
                             letterSpacing: "clamp(0.2px, 0.05vw, 0.5px)",
                             marginBottom: "clamp(0.5rem, 1vw + 0.25rem, 1rem)",
-                          }}
-                        >
-                          {card.title}
+                      }}
+                    >
+                      {card.title}
                         </h2>
-                        <p
+                    <p
                           className="text-center"
-                          style={{
-                            fontFamily: card.font_family,
+                      style={{
+                        fontFamily: card.font_family,
                             // Scale font: font_size -> proportional
                             fontSize: `clamp(${(card.font_size * 0.4).toFixed(1)}px, ${(card.font_size * 0.65).toFixed(1)}px, ${card.font_size}px)`,
                             fontStyle: (card.font_style || "").includes("italic") ? "italic" : "normal",
                             fontWeight: (card.font_style || "").includes("bold") ? "bold" : "normal",
                             color: card.text_color || getTextColor(card.background_color),
-                          }}
-                        >
+                      }}
+                    >
                           {card.text}
                         </p>
                       </>

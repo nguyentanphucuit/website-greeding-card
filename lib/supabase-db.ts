@@ -14,9 +14,13 @@ type CardUpdate = Tables['cards']['Update']
  * Note: Uses server client for API routes
  */
 export async function getUserById(userId: string): Promise<User | null> {
+  console.log("getUserById: Looking for userId:", userId)
   // Use server client for API routes (server-side)
   const supabaseClient = createServerClient()
-  if (!supabaseClient) return null
+  if (!supabaseClient) {
+    console.error("getUserById: Supabase client not initialized")
+    return null
+  }
 
   const { data, error } = await supabaseClient
     .from('users')
@@ -25,15 +29,17 @@ export async function getUserById(userId: string): Promise<User | null> {
     .single()
 
   if (error) {
-    console.error('Get user error:', error)
+    console.error('getUserById error:', error.message, error.code, error.details)
     return null
   }
 
+  console.log("getUserById: Found user:", data ? { id: data.id, email: data.email, role: data.role } : null)
   return data
 }
 
 /**
  * Sync user to database (called after auth)
+ * Note: Uses server client for API routes
  */
 export async function syncUser(userData: {
   id: string
@@ -41,21 +47,33 @@ export async function syncUser(userData: {
   name?: string | null
   image?: string | null
 }): Promise<User | null> {
-  if (!supabase) return null
+  // Use server client for API routes (server-side)
+  const supabaseClient = createServerClient()
+  if (!supabaseClient) {
+    console.error('Sync user error: Supabase client not initialized')
+    return null
+  }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('users')
     .upsert({
       id: userData.id,
       email: userData.email || null,
       name: userData.name || null,
       image: userData.image || null,
+    }, {
+      onConflict: 'id'
     })
     .select()
     .single()
 
   if (error) {
-    console.error('Sync user error:', error)
+    console.error('Sync user error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    })
     return null
   }
 
@@ -164,11 +182,14 @@ export async function updateCard(
 
 /**
  * Delete a card
+ * Note: Uses server client for API routes
  */
 export async function deleteCard(cardId: string): Promise<boolean> {
-  if (!supabase) return false
+  // Use server client for API routes (server-side)
+  const supabaseClient = createServerClient()
+  if (!supabaseClient) return false
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('cards')
     .delete()
     .eq('id', cardId)
@@ -233,96 +254,30 @@ export async function getAllUsers(request?: NextRequest, accessToken?: string): 
 }
 
 /**
- * Check if user is admin
+ * Check if user is admin by role in database
  */
-export async function isUserAdmin(userId: string, request?: NextRequest, accessToken?: string): Promise<boolean> {
-  // Use same client creation as getAllCards (which works and successfully queries user:users(*))
-  const supabaseClient = request ? createServerClient(request.cookies as any, accessToken) : supabase
-  if (!supabaseClient) return false
-
-  console.log('isUserAdmin - userId:', userId, 'hasToken:', !!accessToken)
-
-  // Method 1: Get role from getAllCards (this works because getAllCards queries user:users(*) successfully)
-  // This bypasses the schema cache error with direct users query
-  try {
-    const allCards = await getAllCards(request, accessToken)
-    // Find user in cards list - if user has any cards, we can get their role
-    const userCard = allCards.find(card => card.user?.id === userId)
-    if (userCard?.user?.role) {
-      console.log('isUserAdmin - User role (from getAllCards):', userCard.user.role)
-      return userCard.user.role === 'admin'
-    }
-  } catch (e) {
-    console.log('isUserAdmin - getAllCards approach failed:', e)
-  }
-
-  // Method 2: Try querying via cards table join directly (same pattern as getAllCards)
-  try {
-    const { data: cardData, error: cardError } = await supabaseClient
-      .from('cards')
-      .select('user:users!inner(id, role)')
-      .eq('user:users.id', userId)
-      .limit(1)
-      .maybeSingle()
-    
-    if (!cardError && cardData?.user?.role) {
-      console.log('isUserAdmin - User role (from cards join):', cardData.user.role)
-      return cardData.user.role === 'admin'
-    } else if (cardError) {
-      console.log('isUserAdmin - Cards join error (user may have no cards):', cardError.message)
-    }
-  } catch (e) {
-    console.log('isUserAdmin - Cards join approach failed:', e)
-  }
-
-  // Method 3: Try getAllUsers (may fail with schema cache error, but try anyway)
-  try {
-    const allUsers = await getAllUsers(request, accessToken)
-    const user = allUsers.find(u => u.id === userId)
-    if (user) {
-      console.log('isUserAdmin - User role (from getAllUsers):', user.role)
-      return user.role === 'admin'
-    }
-  } catch (e) {
-    console.log('isUserAdmin - getAllUsers approach failed (likely schema cache error):', e)
-  }
-
-  // Method 4: Try direct query to users table (likely to fail with schema cache error)
-  const { data, error } = await supabaseClient
-    .from('users')
-    .select('role')
-    .eq('id', userId)
-    .single()
-
-  if (error) {
-    if (error.code === 'PGRST205') {
-      console.error('isUserAdmin - Schema cache error (PGRST205). Cannot query users table directly.')
-      console.error('isUserAdmin - All methods failed. User may not have any cards to check role from.')
-      return false
-    }
-    console.error('isUserAdmin - Error querying users:', error.message, error.code, error.details)
-    return false
-  }
-
-  if (!data) {
-    console.log('isUserAdmin - No data returned from users query')
-    return false
-  }
-
-  console.log('isUserAdmin - User role (from direct query):', data.role)
-  return data.role === 'admin'
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  console.log("isUserAdmin: Checking userId:", userId)
+  const dbUser = await getUserById(userId)
+  console.log("isUserAdmin: dbUser:", dbUser ? { id: dbUser.id, email: dbUser.email, role: dbUser.role } : null)
+  const isAdmin = dbUser?.role === 'admin'
+  console.log("isUserAdmin: result:", isAdmin)
+  return isAdmin
 }
 
 /**
  * Update user plan
+ * Note: Uses server client for API routes
  */
 export async function updateUserPlan(
   userId: string,
   plan: 'free' | 'pro' | 'enterprise'
 ): Promise<boolean> {
-  if (!supabase) return false
+  // Use server client for API routes (server-side)
+  const supabaseClient = createServerClient()
+  if (!supabaseClient) return false
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('users')
     .update({ plan })
     .eq('id', userId)

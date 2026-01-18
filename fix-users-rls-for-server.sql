@@ -25,6 +25,7 @@ DROP POLICY IF EXISTS "Admins can view all users" ON users;
 
 -- For now, let's use Option 2 (allow all SELECT) since server-side queries need it
 DROP POLICY IF EXISTS "Users can view their own data" ON users;
+DROP POLICY IF EXISTS "Allow user queries" ON users;
 CREATE POLICY "Allow user queries" 
   ON users FOR SELECT
   TO authenticated, anon
