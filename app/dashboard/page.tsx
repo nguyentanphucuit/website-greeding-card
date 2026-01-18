@@ -8,16 +8,7 @@ import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trash2, Edit, Download } from "lucide-react"
-import html2canvas from "html2canvas"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { CardEditor } from "@/components/card-editor"
+import { Trash2, Edit } from "lucide-react"
 
 interface CardData {
   id: string
@@ -36,13 +27,31 @@ interface CardData {
   updated_at: string
 }
 
+// Helper function to get text color based on background (same as create page)
+function getTextColor(backgroundColor: string): string {
+  const lightColors = [
+    "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0", 
+    "#f0fff4", "#f0f9ff", "#fff0f5", "#fff5f5", "#faf5ff"
+  ]
+  if (lightColors.includes(backgroundColor.toLowerCase())) {
+    return "#1a1a1a"
+  }
+  const hex = backgroundColor.replace("#", "")
+  if (hex.length === 6) {
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000
+    return brightness > 155 ? "#1a1a1a" : "#ffffff"
+  }
+  return "#ffffff"
+}
+
 export default function DashboardPage() {
   const { user, loading: authLoading } = useSupabaseAuth()
   const router = useRouter()
   const [cards, setCards] = useState<CardData[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingCard, setEditingCard] = useState<CardData | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -57,11 +66,15 @@ export default function DashboardPage() {
   }, [user])
 
   const fetchCards = async () => {
+    if (!user) return
+    
     try {
-      const response = await fetch("/api/cards")
+      const response = await fetch(`/api/cards?userId=${user.id}`)
       if (response.ok) {
         const data = await response.json()
         setCards(data)
+      } else {
+        console.error("Failed to fetch cards:", response.status, response.statusText)
       }
     } catch (error) {
       console.error("Error fetching cards:", error)
@@ -72,10 +85,13 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this card?")) return
+    if (!user) return
 
     try {
       const response = await fetch(`/api/cards/${id}`, {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
       })
 
       if (response.ok) {
@@ -87,84 +103,29 @@ export default function DashboardPage() {
   }
 
   const handleEdit = (card: CardData) => {
-    setEditingCard(card)
-    setIsDialogOpen(true)
+    // Navigate to create page with card data
+    const cardData = {
+      id: card.id,
+      title: card.title,
+      text: card.text,
+      fontSize: card.font_size,
+      fontFamily: card.font_family,
+      fontStyle: card.font_style || "normal",
+      backgroundColor: card.background_color,
+      backgroundImage: card.background_image || undefined,
+      textColor: card.text_color,
+      textContainerBackground: card.text_container_background,
+      textContainerOpacity: card.text_container_opacity,
+    }
+    
+    // Store card data in sessionStorage to pass to create page
+    sessionStorage.setItem("editCardData", JSON.stringify(cardData))
+    
+    // Navigate to create page
+    router.push("/create")
   }
 
-  const handleSaveEdit = async (cardData: any) => {
-    if (!editingCard) return
 
-    try {
-      const response = await fetch(`/api/cards/${editingCard.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cardData),
-      })
-
-      if (response.ok) {
-        await fetchCards()
-        setIsDialogOpen(false)
-        setEditingCard(null)
-      }
-    } catch (error) {
-      console.error("Error updating card:", error)
-    }
-  }
-
-  const handleExport = async (card: CardData) => {
-    // Create a temporary preview element
-    const preview = document.createElement("div")
-    preview.className = "w-full aspect-[4/3] rounded-lg p-8 flex flex-col items-center justify-center"
-    preview.style.backgroundColor = card.backgroundColor
-    if (card.backgroundImage) {
-      preview.style.backgroundImage = `url(${card.backgroundImage})`
-    preview.style.backgroundSize = "cover"
-      preview.style.backgroundPosition = "center"
-    }
-    preview.style.backgroundPosition = "center"
-
-    const title = document.createElement("h2")
-    title.textContent = card.title
-    title.className = "text-2xl font-bold mb-4 text-center"
-    title.style.fontFamily = card.fontFamily
-    title.style.fontSize = `${card.fontSize * 0.8}px`
-    title.style.fontStyle = card.fontStyle.includes("italic") ? "italic" : "normal"
-    title.style.fontWeight = card.fontStyle.includes("bold") ? "bold" : "normal"
-
-    const text = document.createElement("p")
-    text.textContent = card.text
-    text.className = "text-center"
-    text.style.fontFamily = card.fontFamily
-    text.style.fontSize = `${card.fontSize}px`
-    text.style.fontStyle = card.fontStyle.includes("italic") ? "italic" : "normal"
-    text.style.fontWeight = card.fontStyle.includes("bold") ? "bold" : "normal"
-    text.style.color =
-      card.backgroundColor === "#ffffff" ||
-      card.backgroundColor === "#f0f0f0" ||
-      card.backgroundColor === "#fff5e6"
-        ? "#000000"
-        : "#ffffff"
-
-    preview.appendChild(title)
-    preview.appendChild(text)
-    document.body.appendChild(preview)
-
-    try {
-      const canvas = await html2canvas(preview, {
-        backgroundColor: card.background_color,
-        scale: 2,
-      })
-      const url = canvas.toDataURL("image/png")
-      const link = document.createElement("a")
-      link.download = `greeting-card-${card.id}.png`
-      link.href = url
-      link.click()
-    } catch (error) {
-      console.error("Error exporting card:", error)
-    } finally {
-      document.body.removeChild(preview)
-    }
-  }
 
   if (authLoading || loading) {
     return (
@@ -211,8 +172,11 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {/* Scale calculation: Preview max-w-4xl (~896px) vs Dashboard grid card
+                      lg:grid-cols-3: ~400px (scale ~0.45), md:grid-cols-2: ~600px (scale ~0.67)
+                      Use CSS container queries or responsive scaling */}
                   <div
-                    className="w-full aspect-[4/3] rounded-lg p-4 flex flex-col items-center justify-center mb-4"
+                    className="w-full aspect-[4/3] rounded-lg flex flex-col items-center justify-center shadow-lg relative overflow-hidden mb-6"
                     style={{
                       backgroundColor: card.background_color,
                       backgroundImage: card.background_image
@@ -220,37 +184,98 @@ export default function DashboardPage() {
                         : undefined,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
+                      // Scale padding: p-8 (32px) -> responsive based on container
+                      // lg: ~14px (0.45 * 32), md: ~21px (0.67 * 32)
+                      padding: "clamp(0.875rem, 1.5vw + 0.5rem, 2rem)",
                     }}
                   >
-                    <h3
-                      className="text-lg font-bold mb-2 text-center"
-                      style={{
-                        fontFamily: card.font_family,
-                        fontSize: `${card.font_size * 0.6}px`,
-                        fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
-                        fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
-                      }}
-                    >
-                      {card.title}
-                    </h3>
-                    <p
-                      className="text-center text-sm"
-                      style={{
-                        fontFamily: card.font_family,
-                        fontSize: `${card.font_size * 0.5}px`,
-                        fontStyle: card.font_style.includes("italic") ? "italic" : "normal",
-                        fontWeight: card.font_style.includes("bold") ? "bold" : "normal",
-                        color:
-                          card.background_color === "#ffffff" ||
-                          card.background_color === "#f0f0f0" ||
-                          card.background_color === "#fff5e6"
-                            ? "#000000"
-                            : "#ffffff",
-                      }}
-                    >
-                      {card.text.substring(0, 50)}
-                      {card.text.length > 50 ? "..." : ""}
-                    </p>
+                    {/* Text Container with adjustable background - only show when there's an image */}
+                    {card.background_image ? (
+                      <div
+                        className="rounded-lg"
+                        style={{
+                          backgroundColor: (() => {
+                            const opacity = card.text_container_opacity ?? 0.6
+                            const bgColor = card.text_container_background || "#000000"
+                            const hex = bgColor.replace("#", "")
+                            const r = parseInt(hex.substr(0, 2), 16)
+                            const g = parseInt(hex.substr(2, 2), 16)
+                            const b = parseInt(hex.substr(4, 2), 16)
+                            return `rgba(${r}, ${g}, ${b}, ${opacity})`
+                          })(),
+                          maxWidth: "90%",
+                          opacity: "1",
+                          // Scale padding: px-8 py-6 -> proportional
+                          // lg: px-3.5 py-2.7, md: px-5.3 py-4
+                          padding: "clamp(0.675rem, 1.2vw + 0.4rem, 1.5rem) clamp(0.875rem, 1.5vw + 0.5rem, 2rem)",
+                        }}
+                      >
+                        <h2
+                          className="font-bold text-center"
+                          style={{
+                            fontFamily: card.font_family,
+                            // Scale font: font_size * 1.1 -> scale down proportionally
+                            // lg: ~0.45x, md: ~0.67x, base: 1x
+                            fontSize: `clamp(${(card.font_size * 1.1 * 0.4).toFixed(1)}px, ${(card.font_size * 1.1 * 0.65).toFixed(1)}px, ${card.font_size * 1.1}px)`,
+                            fontStyle: (card.font_style || "normal").includes("italic") ? "italic" : "normal",
+                            fontWeight: "bold",
+                            color: card.text_color || "#ffffff",
+                            // Scale text shadow: 2px -> ~0.9px (lg), ~1.3px (md)
+                            textShadow: "clamp(0.8px, 0.15vw, 1px) clamp(0.8px, 0.15vw, 1px) clamp(1.6px, 0.3vw, 2px) rgba(0,0,0,0.5), 0 0 clamp(3.2px, 0.6vw, 4px) rgba(0,0,0,0.3)",
+                            letterSpacing: "clamp(0.2px, 0.05vw, 0.5px)",
+                            marginBottom: "clamp(0.5rem, 1vw + 0.25rem, 1rem)",
+                          }}
+                        >
+                          {card.title}
+                        </h2>
+                        <p
+                          className="text-center"
+                          style={{
+                            fontFamily: card.font_family,
+                            // Scale font: font_size -> proportional
+                            fontSize: `clamp(${(card.font_size * 0.4).toFixed(1)}px, ${(card.font_size * 0.65).toFixed(1)}px, ${card.font_size}px)`,
+                            fontStyle: (card.font_style || "").includes("italic") ? "italic" : "normal",
+                            fontWeight: (card.font_style || "").includes("bold") ? "bold" : "normal",
+                            color: card.text_color || "#ffffff",
+                          }}
+                        >
+                          {card.text}
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <h2
+                          className="font-bold text-center"
+                          style={{
+                            fontFamily: card.font_family,
+                            // Scale font: font_size * 1.1 -> proportional
+                            fontSize: `clamp(${(card.font_size * 1.1 * 0.4).toFixed(1)}px, ${(card.font_size * 1.1 * 0.65).toFixed(1)}px, ${card.font_size * 1.1}px)`,
+                            fontStyle: (card.font_style || "normal").includes("italic") ? "italic" : "normal",
+                            fontWeight: "bold",
+                            color: card.text_color || getTextColor(card.background_color),
+                            // Scale text shadow: 1px -> ~0.45px (lg), ~0.67px (md)
+                            textShadow: "clamp(0.4px, 0.08vw, 0.5px) clamp(0.4px, 0.08vw, 0.5px) clamp(0.8px, 0.15vw, 1px) rgba(0,0,0,0.2)",
+                            letterSpacing: "clamp(0.2px, 0.05vw, 0.5px)",
+                            marginBottom: "clamp(0.5rem, 1vw + 0.25rem, 1rem)",
+                          }}
+                        >
+                          {card.title}
+                        </h2>
+                        <p
+                          className="text-center"
+                          style={{
+                            fontFamily: card.font_family,
+                            // Scale font: font_size -> proportional
+                            fontSize: `clamp(${(card.font_size * 0.4).toFixed(1)}px, ${(card.font_size * 0.65).toFixed(1)}px, ${card.font_size}px)`,
+                            fontStyle: (card.font_style || "").includes("italic") ? "italic" : "normal",
+                            fontWeight: (card.font_style || "").includes("bold") ? "bold" : "normal",
+                            color: card.text_color || getTextColor(card.background_color),
+                          }}
+                        >
+                          {card.text}
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -261,15 +286,6 @@ export default function DashboardPage() {
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleExport(card)}
-                      className="flex-1"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export
                     </Button>
                     <Button
                       variant="destructive"
@@ -285,17 +301,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Card</DialogTitle>
-              <DialogDescription>Make changes to your greeting card</DialogDescription>
-            </DialogHeader>
-            {editingCard && (
-              <CardEditor initialData={editingCard} onSave={handleSaveEdit} />
-            )}
-          </DialogContent>
-        </Dialog>
       </main>
       <Footer />
     </div>

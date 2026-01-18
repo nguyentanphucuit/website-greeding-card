@@ -440,7 +440,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
                   style={{
                     fontFamily: cardData.fontFamily,
                     fontSize: `${cardData.fontSize * 1.1}px`,
-                    fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
+                    fontStyle: (cardData.fontStyle || "").includes("italic") ? "italic" : "normal",
                     fontWeight: "bold",
                     color: cardData.textColor || getTextColor(cardData.backgroundColor),
                     textShadow: "1px 1px 2px rgba(0,0,0,0.2)",

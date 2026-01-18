@@ -1,5 +1,68 @@
 import { NextRequest, NextResponse } from "next/server"
 import { GoogleGenAI } from "@google/genai"
+import { getUser } from "@/lib/supabase-auth"
+import { createServerClient } from "@/lib/supabase-server"
+
+const BUCKET_NAME = 'card-images'
+
+/**
+ * Upload base64 image to Supabase Storage
+ */
+async function uploadBase64ImageToSupabase(
+  base64DataUrl: string,
+  userId: string,
+  fileName: string
+): Promise<string | null> {
+  try {
+    const supabase = createServerClient()
+    if (!supabase) {
+      console.error("Supabase client not initialized")
+      return null
+    }
+
+    // Extract base64 data and mime type from data URL
+    // Format: data:image/png;base64,iVBORw0KG...
+    const matches = base64DataUrl.match(/^data:([^;]+);base64,(.+)$/)
+    if (!matches) {
+      console.error("Invalid base64 data URL format")
+      return null
+    }
+
+    const mimeType = matches[1]
+    const base64Data = matches[2]
+    
+    // Convert base64 to buffer
+    const buffer = Buffer.from(base64Data, 'base64')
+    
+    // Determine file extension from mime type
+    const ext = mimeType.split('/')[1] || 'png'
+    const filePath = `${userId}/generated_${fileName}.${ext}`
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, buffer, {
+        upsert: true,
+        contentType: mimeType,
+      })
+
+    if (error) {
+      console.error('Upload error:', error)
+      return null
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(filePath)
+
+    console.log(`✅ Image uploaded to Supabase: ${urlData.publicUrl}`)
+    return urlData.publicUrl
+  } catch (error) {
+    console.error('Error uploading image to Supabase:', error)
+    return null
+  }
+}
 
 interface ImagePart {
   text?: string
@@ -22,13 +85,91 @@ interface ImageResponse {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userRequest } = await request.json()
+    const { userRequest, mode, selectedPrompt } = await request.json()
 
     if (!userRequest || !userRequest.trim()) {
       return NextResponse.json(
         { error: "User request is required" },
         { status: 400 }
       )
+    }
+
+    // Mode: "prompts" - generate 3 prompt options only (no image generation)
+    if (mode === "prompts") {
+      const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+      if (!GEMINI_API_KEY) {
+        return NextResponse.json(
+          { error: "Gemini API key is not configured" },
+          { status: 500 }
+        )
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey: GEMINI_API_KEY
+      })
+
+      const promptsPrompt = `Based on this user request: "${userRequest}"
+
+Generate 3 different, creative, and detailed prompts for creating greeting card background images. Each prompt should:
+- Be unique and offer a different visual style (e.g., minimalist, luxurious, cute, modern, classic)
+- Include specific design elements, colors, and mood
+- Be detailed enough for AI image generation (include style, colors, composition, mood)
+- Be suitable for a greeting card background (vertical A5 ratio, space for text)
+
+Format your response as JSON array:
+{
+  "prompts": [
+    "First detailed prompt here...",
+    "Second detailed prompt here...",
+    "Third detailed prompt here..."
+  ]
+}`
+
+      console.log("Generating 3 prompt options...")
+      const promptsResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: promptsPrompt,
+      })
+
+      let promptsData = {
+        prompts: [
+          `Create a beautiful, high-quality greeting card background image based on: "${userRequest}". Modern, elegant style with harmonious colors, clean design, joyful mood, high resolution, 800x600 pixels, horizontal orientation, space for text overlay.`,
+          `Design a stunning greeting card background for: "${userRequest}". Professional greeting card style with vibrant color palette, decorative elements, warm and inviting atmosphere, sharp details, landscape orientation, text area in center.`,
+          `Generate an attractive greeting card background inspired by: "${userRequest}". Contemporary design with complementary colors, subtle patterns, celebratory mood, high-quality rendering, horizontal format, clear center area for text.`
+        ]
+      }
+
+      try {
+        let textContent: string
+        if (typeof promptsResponse === 'string') {
+          textContent = promptsResponse
+        } else if (promptsResponse && 'text' in promptsResponse) {
+          const textValue = (promptsResponse as { text?: string | (() => string) }).text
+          if (typeof textValue === 'string') {
+            textContent = textValue
+          } else if (typeof textValue === 'function') {
+            textContent = textValue()
+          } else {
+            textContent = String(textValue || promptsResponse)
+          }
+        } else {
+          textContent = JSON.stringify(promptsResponse)
+        }
+
+        const jsonMatch = textContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          if (parsed.prompts && Array.isArray(parsed.prompts) && parsed.prompts.length >= 3) {
+            promptsData = parsed
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing prompts response:", error)
+      }
+
+      return NextResponse.json({
+        prompts: promptsData.prompts.slice(0, 3)
+      })
     }
 
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY
@@ -111,8 +252,11 @@ Format your response as JSON:
     }
 
     // Generate image directly using Gemini image generation model
+    // Use selectedPrompt if provided (from mode="generate"), otherwise use userRequest
+    const imageRequestText = selectedPrompt || userRequest
+    
     // Create a detailed prompt with specific color and style requirements
-    const imagePrompt = `Create a beautiful, high-quality greeting card background image based on this request: "${userRequest}". 
+    const imagePrompt = selectedPrompt || `Create a beautiful, high-quality greeting card background image based on this request: "${userRequest}". 
 
 REQUIREMENTS:
 - Dimensions: 800x600 pixels, horizontal/landscape orientation
@@ -175,7 +319,7 @@ Make it visually stunning with beautiful, complementary colors that will make te
           const imageBytes = generatedImage.image.imageBytes
           const mimeType = generatedImage.image.mimeType || "image/png"
           
-          // Convert base64 to data URL for direct display
+          // Convert base64 to data URL for direct display (will be uploaded to Supabase when saved)
           imageUrl = `data:${mimeType};base64,${imageBytes}`
           console.log("✅ Image generated successfully from Imagen 4.0, size:", imageBytes.length, "bytes")
           // Image already extracted, no need to process further
@@ -264,7 +408,7 @@ Make it visually stunning with beautiful, complementary colors that will make te
               const imageData = part.inlineData.data
               const mimeType = part.inlineData.mimeType || "image/png"
               
-              // Convert base64 to data URL for direct display
+              // Convert base64 to data URL for direct display (will be uploaded to Supabase when saved)
               imageUrl = `data:${mimeType};base64,${imageData}`
               console.log("Image generated successfully, size:", imageData.length, "bytes")
               break

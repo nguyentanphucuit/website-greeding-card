@@ -1,14 +1,13 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
-import { Navbar } from "@/components/navbar"
-import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
+import { Trash2, Users, CreditCard, LogOut } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { supabase } from "@/lib/supabase-client"
 
 interface AdminCard {
   id: string
@@ -31,11 +30,15 @@ interface AdminCard {
   }
 }
 
+type MenuItem = "greeting-cards" | "users"
+
 export default function AdminPage() {
-  const { user, loading: authLoading } = useSupabaseAuth()
+  const { user, session, loading: authLoading } = useSupabaseAuth()
   const router = useRouter()
   const [cards, setCards] = useState<AdminCard[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeMenu, setActiveMenu] = useState<MenuItem>("greeting-cards")
+  const [users, setUsers] = useState<Array<{id: string, name: string | null, email: string | null, plan: string, role: string, created_at: string}>>([])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -44,15 +47,13 @@ export default function AdminPage() {
     // Note: Admin check will be done via API route
   }, [authLoading, user, router])
 
-  useEffect(() => {
-    if (user) {
-      fetchCards()
-    }
-  }, [user])
-
-  const fetchCards = async () => {
+  const fetchCards = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/cards")
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`
+      }
+      const response = await fetch("/api/admin/cards", { headers })
       if (response.ok) {
         const data = await response.json()
         setCards(data)
@@ -62,6 +63,39 @@ export default function AdminPage() {
     } finally {
       setLoading(false)
     }
+  }, [session])
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const headers: HeadersInit = {}
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`
+      }
+      const response = await fetch("/api/admin/users", { headers })
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data)
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (user) {
+      if (activeMenu === "greeting-cards") {
+        fetchCards()
+      } else if (activeMenu === "users") {
+        fetchUsers()
+      }
+    }
+  }, [user, activeMenu, fetchCards, fetchUsers])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push("/auth/signin")
   }
 
   const handleDelete = async (id: string) => {
@@ -93,12 +127,59 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 bg-clip-text text-transparent">
-          Admin Panel
-        </h1>
+    <div className="min-h-screen flex bg-gray-50">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div className="p-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
+            Admin Panel
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">{user?.email}</p>
+        </div>
+        
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
+            <button
+              onClick={() => setActiveMenu("greeting-cards")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeMenu === "greeting-cards"
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <CreditCard className="h-5 w-5" />
+              <span>Manage Greeting Card</span>
+            </button>
+            <button
+              onClick={() => setActiveMenu("users")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                activeMenu === "users"
+                  ? "bg-blue-50 text-blue-700 font-medium"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Users className="h-5 w-5" />
+              <span>Manage Users</span>
+            </button>
+          </div>
+        </nav>
+
+        <div className="p-4 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="container mx-auto px-8 py-8">
+          {activeMenu === "greeting-cards" && (
+            <>
         <Card className="mb-6 border-blue-200">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-white rounded-t-lg">
             <CardTitle className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
@@ -205,18 +286,63 @@ export default function AdminPage() {
                       </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      <Badge variant="outline">Font: {card.fontFamily}</Badge>
-                      <Badge variant="outline">Size: {card.fontSize}px</Badge>
-                      <Badge variant="outline">Style: {card.fontStyle}</Badge>
+                      <Badge variant="outline">Font: {card.font_family}</Badge>
+                      <Badge variant="outline">Size: {card.font_size}px</Badge>
+                      <Badge variant="outline">Style: {card.font_style}</Badge>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
+            </div>
+            </>
+          )}
+
+          {activeMenu === "users" && (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
+                Users
+              </h2>
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Users</CardTitle>
+                  <CardDescription>
+                    View and manage all registered users
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <p className="text-center py-8 text-muted-foreground">Loading users...</p>
+                  ) : users.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">No users found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {users.map((userItem) => {
+                        const userCards = cards.filter(c => c.user.id === userItem.id)
+                        return (
+                          <div
+                            key={userItem.id}
+                            className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                          >
+                            <div>
+                              <p className="font-medium">{userItem.name || "Unknown"}</p>
+                              <p className="text-sm text-gray-500">{userItem.email}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {userCards.length} card{userCards.length !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </main>
-      <Footer />
     </div>
   )
 }

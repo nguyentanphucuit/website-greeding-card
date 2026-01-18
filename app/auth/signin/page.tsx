@@ -1,13 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { supabase } from "@/lib/supabase-client"
 import type { User } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Check, User as UserIcon, Mail, Lock, ArrowUpRight, Paperclip } from "lucide-react"
 
 async function syncUserToDatabase(user: User) {
@@ -33,8 +31,42 @@ export default function SignInPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [isSignUp, setIsSignUp] = useState(true) // Default to sign up
+  const [isSignUp, setIsSignUp] = useState(false) // Default to sign in
   const [name, setName] = useState("")
+  const [sparkles, setSparkles] = useState<Array<{left: string, top: string, delay: string, duration: string}>>([])
+
+  useEffect(() => {
+    // Generate sparkle data only on client after mount
+    setSparkles([...Array(30)].map(() => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      delay: `${Math.random() * 3}s`,
+      duration: `${2 + Math.random() * 3}s`,
+    })))
+  }, [])
+
+  const checkAdminAndRedirect = async () => {
+    try {
+      const response = await fetch("/api/auth/check-admin", {
+        credentials: "include", // Send cookies for authentication
+      })
+      if (response.ok) {
+        const { isAdmin } = await response.json()
+        if (isAdmin) {
+          router.push("/admin")
+        } else {
+          router.push("/dashboard")
+        }
+      } else {
+        router.push("/dashboard")
+      }
+      router.refresh()
+    } catch (err) {
+      console.error("Error checking admin status:", err)
+      router.push("/dashboard")
+      router.refresh()
+    }
+  }
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,8 +87,7 @@ export default function SignInPage() {
         setError(signInError.message)
       } else if (signInData.user) {
         await syncUserToDatabase(signInData.user)
-        router.push("/dashboard")
-        router.refresh()
+        await checkAdminAndRedirect()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -97,8 +128,7 @@ export default function SignInPage() {
         if (autoSignInError) {
           setError(autoSignInError.message)
         } else if (autoSignInData.user) {
-        router.push("/dashboard")
-          router.refresh()
+          await checkAdminAndRedirect()
         }
       }
     } catch (err) {
@@ -117,10 +147,12 @@ export default function SignInPage() {
         throw new Error("Supabase client not initialized")
       }
 
+      // For OAuth, we'll redirect to a handler page that checks admin status
+      // For now, redirect to dashboard - admin check will happen after OAuth callback
       const { error: socialError } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -134,7 +166,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleQuickLogin = async () => {
+  const handleQuickLogin = async (type: 'admin' | 'user') => {
     setIsLoading(true)
     setError("")
 
@@ -143,21 +175,20 @@ export default function SignInPage() {
         throw new Error("Supabase client not initialized")
       }
 
-      // Test user credentials
-      const testEmail = "testuser@test.com"
-      const testPassword = "test123456"
+      const credentials = type === 'admin'
+        ? { email: "admin@gmail.com", password: "123123" }
+        : { email: "testuser@test.com", password: "test123456" }
 
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: testEmail,
-        password: testPassword,
+        email: credentials.email,
+        password: credentials.password,
       })
 
       if (signInError) {
         setError(signInError.message)
       } else if (signInData.user) {
         await syncUserToDatabase(signInData.user)
-        router.push("/dashboard")
-        router.refresh()
+        await checkAdminAndRedirect()
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -170,22 +201,18 @@ export default function SignInPage() {
     <div className="min-h-screen bg-gradient-to-b from-blue-100 via-blue-50 to-blue-100 relative overflow-hidden">
       {/* Sparkle effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(30)].map((_, i) => {
-          const delay = Math.random() * 3
-          const duration = 2 + Math.random() * 3
-          return (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-white rounded-full opacity-60 animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${delay}s`,
-                animationDuration: `${duration}s`,
-              }}
-            />
-          )
-        })}
+        {sparkles.map((sparkle, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full opacity-60 animate-pulse"
+            style={{
+              left: sparkle.left,
+              top: sparkle.top,
+              animationDelay: sparkle.delay,
+              animationDuration: sparkle.duration,
+            }}
+          />
+        ))}
       </div>
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-12">
@@ -286,7 +313,27 @@ export default function SignInPage() {
               </div>
             </div>
                   </div>
-
+ {/* Quick Login Buttons - Always visible for testing */}
+ <div className="flex gap-2 mb-3  ">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 h-10 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700 font-medium"
+                onClick={() => handleQuickLogin('admin')}
+                disabled={isLoading}
+              >
+                🚀 Quick Login: Admin
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 h-10 bg-green-50 hover:bg-green-100 border-green-300 text-green-700 font-medium"
+                onClick={() => handleQuickLogin('user')}
+                disabled={isLoading}
+              >
+                👤 Quick Login: User
+              </Button>
+            </div>
           {/* Traditional Sign-Up Form */}
           <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
             {isSignUp && (
@@ -344,17 +391,6 @@ export default function SignInPage() {
               disabled={isLoading}
             >
               {isLoading ? (isSignUp ? "Creating account..." : "Signing in...") : (isSignUp ? "Sign Up" : "Sign In")}
-            </Button>
-
-            {/* Quick Login for Testing */}
-            <Button
-              type="button"
-              onClick={handleQuickLogin}
-              variant="outline"
-              className="w-full h-12 border-2 border-blue-300 text-blue-600 hover:bg-blue-50 font-semibold rounded-lg"
-              disabled={isLoading}
-            >
-              🚀 Quick Login (Test User)
             </Button>
           </form>
 

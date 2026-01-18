@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getUser } from "@/lib/supabase-auth"
 import { getCardById, updateCard, deleteCard } from "@/lib/supabase-db"
 
 export async function GET(
@@ -7,26 +6,27 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
     const { id } = await params
+    
+    // Get userId from query parameters
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId')
+
     const card = await getCardById(id)
 
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 })
     }
 
-    if (card.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // If userId is provided, verify ownership
+    if (userId && card.user_id !== userId) {
+      return NextResponse.json({ error: "Forbidden", message: "User does not own this card." }, { status: 403 })
     }
 
     return NextResponse.json(card)
   } catch (error) {
     console.error("Error fetching card:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error", message: (error as Error).message }, { status: 500 })
   }
 }
 
@@ -35,23 +35,67 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const body = await request.json()
+    const { id } = await params
+
+    // Get userId from request body
+    const userId = body.userId || body.user_id
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        message: "Please provide userId in request body"
+      }, { status: 400 })
     }
 
-    const { id } = await params
+    // Verify card exists
     const card = await getCardById(id)
-
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 })
     }
 
-    if (card.user_id !== user.id) {
+    // Verify ownership
+    if (card.user_id !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const body = await request.json()
+    // Check if backgroundImage is a base64 data URL, upload to Supabase if needed
+    let backgroundImageUrl = body.backgroundImage || card.background_image
+    if (backgroundImageUrl && backgroundImageUrl.startsWith('data:')) {
+      // Import upload function
+      const { createServerClient } = await import("@/lib/supabase-server")
+      const BUCKET_NAME = 'card-images'
+      
+      const supabase = createServerClient()
+      if (supabase) {
+        try {
+          const matches = backgroundImageUrl.match(/^data:([^;]+);base64,(.+)$/)
+          if (matches) {
+            const mimeType = matches[1]
+            const base64Data = matches[2]
+            const buffer = Buffer.from(base64Data, 'base64')
+            const ext = mimeType.split('/')[1] || 'png'
+            const filePath = `${userId}/${id}_background.${ext}`
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from(BUCKET_NAME)
+              .upload(filePath, buffer, {
+                upsert: true,
+                contentType: mimeType,
+              })
+
+            if (!uploadError && uploadData) {
+              const { data: urlData } = supabase.storage
+                .from(BUCKET_NAME)
+                .getPublicUrl(filePath)
+              backgroundImageUrl = urlData.publicUrl
+            }
+          }
+        } catch (uploadErr) {
+          console.error("Error uploading image on update:", uploadErr)
+          // Continue with base64 if upload fails
+        }
+      }
+    }
 
     const updatedCard = await updateCard(id, {
       title: body.title,
@@ -60,10 +104,11 @@ export async function PUT(
       font_family: body.fontFamily,
       font_style: body.fontStyle,
       background_color: body.backgroundColor,
-      background_image: body.backgroundImage,
+      background_image: backgroundImageUrl,
       text_color: body.textColor,
       text_container_background: body.textContainerBackground,
       text_container_opacity: body.textContainerOpacity,
+      initial_request: body.initialRequest || card.initial_request,
     })
 
     if (!updatedCard) {
@@ -82,20 +127,34 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { id } = await params
+    
+    // Get userId from request body
+    let userId: string | undefined
+    try {
+      const body = await request.json()
+      userId = body.userId || body.user_id
+    } catch {
+      // If body is empty or not JSON, try query params
+      const { searchParams } = new URL(request.url)
+      userId = searchParams.get('userId') || undefined
     }
 
-    const { id } = await params
+    if (!userId) {
+      return NextResponse.json({ 
+        error: "User ID is required",
+        message: "Please provide userId in request body or query parameters"
+      }, { status: 400 })
+    }
+
     const card = await getCardById(id)
 
     if (!card) {
       return NextResponse.json({ error: "Card not found" }, { status: 404 })
     }
 
-    if (card.user_id !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (card.user_id !== userId) {
+      return NextResponse.json({ error: "Forbidden", message: "User does not own this card." }, { status: 403 })
     }
 
     const success = await deleteCard(id)
@@ -107,7 +166,7 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error deleting card:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error", message: (error as Error).message }, { status: 500 })
   }
 }
 

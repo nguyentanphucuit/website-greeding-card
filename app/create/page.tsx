@@ -20,6 +20,10 @@ export default function CreatePage() {
   const [showEditor, setShowEditor] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false)
+  const [prompts, setPrompts] = useState<string[]>([])
+  const [selectedPrompt, setSelectedPrompt] = useState<string | null>(null)
+  const [cardId, setCardId] = useState<string | undefined>(undefined)
   const [cardData, setCardData] = useState<{
     title: string
     text: string
@@ -49,10 +53,85 @@ export default function CreatePage() {
     }
   }, [loading, user, router])
 
+  // Load edit card data from sessionStorage if available
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const editCardDataStr = sessionStorage.getItem("editCardData")
+      if (editCardDataStr) {
+        try {
+          const editCardData = JSON.parse(editCardDataStr)
+          
+          // Store card ID for update
+          if (editCardData.id) {
+            setCardId(editCardData.id)
+          }
+          
+          // Set card data directly (skip prompt generation)
+          setCardData({
+            title: editCardData.title,
+            text: editCardData.text,
+            fontSize: editCardData.fontSize,
+            fontFamily: editCardData.fontFamily,
+            fontStyle: editCardData.fontStyle || "normal",
+            backgroundColor: editCardData.backgroundColor,
+            backgroundImage: editCardData.backgroundImage,
+            imageUrl: editCardData.backgroundImage,
+            textContainerBackground: editCardData.textContainerBackground,
+            textContainerOpacity: editCardData.textContainerOpacity,
+            textColor: editCardData.textColor,
+          })
+          
+          // Show editor directly
+          setShowEditor(true)
+          setShowPreview(true)
+          
+          // Clear sessionStorage
+          sessionStorage.removeItem("editCardData")
+        } catch (error) {
+          console.error("Error parsing edit card data:", error)
+        }
+      }
+    }
+  }, [])
+
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userRequest.trim()) return
 
+    // First, generate 3 prompt options
+    setIsGeneratingPrompts(true)
+    setError("")
+    setPrompts([])
+    setSelectedPrompt(null)
+
+    try {
+      const promptsResponse = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userRequest, mode: "prompts" }),
+      })
+
+      if (!promptsResponse.ok) {
+        throw new Error("Failed to generate prompts")
+      }
+
+      const promptsData = await promptsResponse.json()
+      if (promptsData.prompts && Array.isArray(promptsData.prompts)) {
+        setPrompts(promptsData.prompts)
+      } else {
+        throw new Error("Invalid prompts response")
+      }
+    } catch (err: unknown) {
+      console.error("Error generating prompts:", err)
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate prompts. Please try again."
+      setError(errorMessage)
+    } finally {
+      setIsGeneratingPrompts(false)
+    }
+  }
+
+  const handlePromptSelect = async (prompt: string) => {
+    setSelectedPrompt(prompt)
     setIsGenerating(true)
     setError("")
 
@@ -60,7 +139,7 @@ export default function CreatePage() {
       const response = await fetch("/api/ai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userRequest }),
+        body: JSON.stringify({ userRequest, selectedPrompt: prompt }),
       })
 
       let data: {
@@ -199,20 +278,61 @@ export default function CreatePage() {
 
     setIsSaving(true)
     try {
-      const response = await fetch("/api/cards", {
-        method: "POST",
+      // Include prompt (selectedPrompt or userRequest) and all card data
+      const saveData = {
+        ...cardData,
+        userId: user.id, // Pass user ID from auth (we still need it to identify user)
+        initialRequest: selectedPrompt || userRequest || null, // Save the prompt used
+      }
+      
+      // Use PUT for update if cardId exists, otherwise POST for create
+      const method = cardId ? "PUT" : "POST"
+      const url = cardId ? `/api/cards/${cardId}` : "/api/cards"
+      
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cardData),
+        body: JSON.stringify(saveData),
       })
 
       if (response.ok) {
         await response.json()
+        // Clear cardId after save
+        setCardId(undefined)
         router.push(`/dashboard`)
       } else {
-        throw new Error("Failed to save card")
+        // Try to get error message from response
+        let errorMessage = `Failed to save card (${response.status} ${response.statusText})`
+        
+        // Log status first
+        console.error("API Error Status:", response.status, response.statusText)
+        
+        try {
+          const responseText = await response.text()
+          console.error("API Error Response (raw text):", responseText)
+          
+          if (responseText && responseText.trim()) {
+            try {
+              const errorData = JSON.parse(responseText)
+              console.error("API Error Response (parsed):", errorData)
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch {
+              // Not JSON, use text as error message
+              errorMessage = responseText || errorMessage
+            }
+          } else {
+            console.error("API Error: Empty response body")
+          }
+        } catch (parseError) {
+          console.error("Error parsing error response:", parseError)
+        }
+        
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error("Error saving card:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to save card. Please try again."
+      setError(errorMessage)
     } finally {
       setIsSaving(false)
     }
@@ -274,6 +394,8 @@ export default function CreatePage() {
     setCardData(null)
     setGeneratedData(undefined)
     setUserRequest("")
+    setPrompts([])
+    setSelectedPrompt(null)
   }
 
   const handleSaveFromPreview = async () => {
@@ -314,9 +436,9 @@ export default function CreatePage() {
                     value={userRequest}
                     onChange={(e) => setUserRequest(e.target.value)}
                     className="h-12 text-lg"
-                    disabled={isGenerating}
+                    disabled={isGeneratingPrompts || isGenerating}
                   />
-                  {error && (
+                  {error && prompts.length === 0 && (
                     <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
                       <p className="text-sm text-destructive">{error}</p>
                     </div>
@@ -325,21 +447,84 @@ export default function CreatePage() {
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={!userRequest.trim() || isGenerating}
+                    disabled={!userRequest.trim() || isGeneratingPrompts || isGenerating}
                   >
-                    {isGenerating ? (
+                    {isGeneratingPrompts ? (
                       <span className="flex items-center gap-2">
                         <span className="animate-spin">⏳</span>
-                        Generating your card with AI...
+                        Đang tạo các gợi ý...
                       </span>
                     ) : (
-                      "Generate Card"
+                      "Tạo gợi ý"
                     )}
                   </Button>
                 </form>
               </CardContent>
             </Card>
+
+            
           </div>
+          {/* Prompts Section - Separate container with max-w-4xl */}
+            {prompts.length > 0 && (
+              <div className="max-w-8xl mx-auto mt-8">
+                <Card className="border-2 border-blue-200">
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="mb-4">
+                        <h3 className="text-lg font-semibold mb-2">Chọn 1 trong 3 gợi ý sau:</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Yêu cầu của bạn: &quot;{userRequest}&quot;
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {prompts.map((prompt, index) => (
+                          <Button
+                            key={index}
+                            variant={selectedPrompt === prompt ? "default" : "outline"}
+                            className="text-left h-auto py-4 px-4 whitespace-normal flex flex-col items-start"
+                            onClick={() => handlePromptSelect(prompt)}
+                            disabled={isGenerating}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
+                                {index + 1}
+                              </span>
+                              <span className="text-xs font-semibold">Gợi ý {index + 1}</span>
+                            </div>
+                            <span className="text-sm">{prompt}</span>
+                          </Button>
+                        ))}
+                      </div>
+                      {error && (
+                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      )}
+                      {isGenerating && (
+                        <div className="text-center py-4">
+                          <span className="flex items-center justify-center gap-2 text-blue-600">
+                            <span className="animate-spin">⏳</span>
+                            Đang tạo ảnh với AI...
+                          </span>
+                        </div>
+                      )}
+                      <Button
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => {
+                          setPrompts([])
+                          setSelectedPrompt(null)
+                          setError("")
+                        }}
+                        disabled={isGenerating}
+                      >
+                        Quay lại
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
         </main>
       </div>
     )
@@ -359,6 +544,8 @@ export default function CreatePage() {
                 setCardData(null)
                 setGeneratedData(undefined)
                 setUserRequest("")
+                setPrompts([])
+                setSelectedPrompt(null)
               }}
               className="mb-4"
             >
@@ -425,8 +612,8 @@ export default function CreatePage() {
                         style={{
                           fontFamily: cardData.fontFamily,
                           fontSize: `${cardData.fontSize}px`,
-                          fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                          fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
+                          fontStyle: (cardData.fontStyle || "").includes("italic") ? "italic" : "normal",
+                          fontWeight: (cardData.fontStyle || "").includes("bold") ? "bold" : "normal",
                           color: cardData.textColor || "#ffffff",
                         }}
                       >
@@ -454,8 +641,8 @@ export default function CreatePage() {
                         style={{
                           fontFamily: cardData.fontFamily,
                           fontSize: `${cardData.fontSize}px`,
-                          fontStyle: cardData.fontStyle.includes("italic") ? "italic" : "normal",
-                          fontWeight: cardData.fontStyle.includes("bold") ? "bold" : "normal",
+                          fontStyle: (cardData.fontStyle || "").includes("italic") ? "italic" : "normal",
+                          fontWeight: (cardData.fontStyle || "").includes("bold") ? "bold" : "normal",
                           color: cardData.textColor || getTextColor(cardData.backgroundColor),
                         }}
                       >
@@ -507,6 +694,8 @@ export default function CreatePage() {
                 setCardData(null)
                 setGeneratedData(undefined)
               setUserRequest("")
+              setPrompts([])
+              setSelectedPrompt(null)
             }}
             className="mb-4"
           >

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAllCards } from "@/lib/supabase-db"
+import { getAllUsers } from "@/lib/supabase-db"
 
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization")
     const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : undefined
 
-    const cards = await getAllCards(request, accessToken)
-    return NextResponse.json(cards)
+    const users = await getAllUsers(request, accessToken)
+    return NextResponse.json(users)
   } catch (error) {
-    console.error("Error fetching admin cards:", error)
+    console.error("Error fetching admin users:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-

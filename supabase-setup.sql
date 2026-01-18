@@ -57,6 +57,17 @@ CREATE POLICY "Users can insert their own data"
   ON users FOR INSERT
   WITH CHECK (auth.uid() = id);
 
+-- Admin can view all users
+CREATE POLICY "Admins can view all users"
+  ON users FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.role = 'admin'
+    )
+  );
+
 -- RLS Policies for cards table
 CREATE POLICY "Users can view their own cards"
   ON cards FOR SELECT
