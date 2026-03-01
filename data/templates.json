@@ -19,24 +19,24 @@
   },
   {
     "id": "birthday",
-    "name": "Sinh nhật",
-    "category": "Sinh nhật",
+    "name": "Birthday",
+    "category": "Birthday",
     "image": "/images/templates/birthday.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Sinh Nhật!",
-      "text": "Chúc bạn tuổi mới thật nhiều sức khỏe, niềm vui và mọi điều như ý."
+      "title": "Happy Birthday!",
+      "text": "Wishing you a wonderful new year filled with health, joy, and everything you desire."
     }
   },
   {
     "id": "wedding",
-    "name": "Đám cưới",
-    "category": "Đám cưới",
+    "name": "Wedding",
+    "category": "Wedding",
     "image": "/images/templates/Wedding.png",
     "free": true,
     "card": {
-      "title": "Trăm Năm Hạnh Phúc",
-      "text": "Chúc hai bạn mãi yêu thương, đồng lòng và hạnh phúc viên mãn."
+      "title": "A Lifetime of Happiness",
+      "text": "Wishing you both everlasting love, unity, and complete happiness together."
     }
   },
   {
@@ -46,74 +46,74 @@
     "image": "/images/templates/Valentine.png",
     "free": true,
     "card": {
-      "title": "Gửi Người Thương",
-      "text": "Cảm ơn vì đã đến bên mình. Chúc chúng ta luôn yêu thương và hạnh phúc."
+      "title": "To My Beloved",
+      "text": "Thank you for being by my side. Wishing us everlasting love and happiness."
     }
   },
   {
     "id": "christmas",
-    "name": "Giáng sinh",
-    "category": "Giáng sinh",
+    "name": "Christmas",
+    "category": "Christmas",
     "image": "/images/templates/Christmas.png",
     "free": true,
     "card": {
-      "title": "Giáng Sinh An Lành",
-      "text": "Chúc bạn một mùa Noel ấm áp, bình an và ngập tràn yêu thương."
+      "title": "Merry Christmas",
+      "text": "Wishing you a warm, peaceful Christmas filled with love and joy."
     }
   },
   {
     "id": "new-year",
-    "name": "Năm mới (Dương lịch)",
-    "category": "Năm mới",
+    "name": "New Year",
+    "category": "New Year",
     "image": "/images/templates/new-year.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Năm Mới",
-      "text": "Chúc năm mới bình an, may mắn, thành công và tràn đầy năng lượng!"
+      "title": "Happy New Year!",
+      "text": "Wishing you a new year full of peace, good fortune, success, and positive energy!"
     }
   },
   {
     "id": "congratulations",
-    "name": "Chúc mừng / Congratulations",
-    "category": "Chúc mừng",
+    "name": "Congratulations",
+    "category": "Congratulations",
     "image": "/images/templates/Congratulations.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Bạn!",
-      "text": "Chúc mừng thành quả tuyệt vời—mọi nỗ lực của bạn thật xứng đáng!"
+      "title": "Congratulations!",
+      "text": "Congratulations on your amazing achievement — all your hard work has truly paid off!"
     }
   },
   {
     "id": "grand-opening",
-    "name": "Khai trương",
-    "category": "Khai trương",
+    "name": "Grand Opening",
+    "category": "Grand Opening",
     "image": "/images/templates/Grand-Opening.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Khai Trương",
-      "text": "Chúc khai trương hồng phát, làm ăn thuận lợi, khách vào nườm nượp!"
+      "title": "Happy Grand Opening!",
+      "text": "Wishing you a prosperous grand opening, smooth business, and a flood of customers!"
     }
   },
   {
     "id": "thank-you",
-    "name": "Cảm ơn",
-    "category": "Cảm ơn",
+    "name": "Thank You",
+    "category": "Thank You",
     "image": "/images/templates/watercolo.png",
     "free": true,
     "card": {
-      "title": "Xin Chân Thành Cảm Ơn",
-      "text": "Cảm ơn bạn vì đã luôn tin tưởng và đồng hành. Trân trọng!"
+      "title": "Thank You So Much",
+      "text": "Thank you for your trust and companionship. With heartfelt appreciation!"
     }
   },
   {
     "id": "housewarming",
-    "name": "Tân gia",
-    "category": "Tân gia",
+    "name": "Housewarming",
+    "category": "Housewarming",
     "image": "/images/templates/Housewarming.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Tân Gia",
-      "text": "Chúc nhà mới an khang, ấm áp, hạnh phúc và nhiều may mắn."
+      "title": "Happy Housewarming!",
+      "text": "Wishing your new home brings you peace, warmth, happiness, and good fortune."
     }
   },
   {
@@ -123,63 +123,63 @@
     "image": "/images/templates/Halloween.png",
     "free": true,
     "card": {
-      "title": "Halloween Vui Vẻ!",
-      "text": "Chúc bạn một đêm Halloween thật vui, thật “cool” và đầy bất ngờ thú vị!"
+      "title": "Happy Halloween!",
+      "text": "Wishing you a fun, cool, and thrilling Halloween night full of surprises!"
     }
   },
   {
     "id": "mid-autumn-festival",
-    "name": "Trung thu",
-    "category": "Trung thu",
+    "name": "Mid-Autumn Festival",
+    "category": "Mid-Autumn Festival",
     "image": "/images/templates/Mid-Autumn-Festival.png",
     "free": true,
     "card": {
-      "title": "Tết Trung Thu Vui Vẻ",
-      "text": "Chúc bạn đoàn viên ấm áp, trăng sáng như ý, niềm vui tròn đầy."
+      "title": "Happy Mid-Autumn Festival",
+      "text": "Wishing you a warm reunion, bright moonlight, and complete happiness."
     }
   },
   {
     "id": "anniversary",
-    "name": "Kỷ niệm",
-    "category": "Kỷ niệm",
+    "name": "Anniversary",
+    "category": "Anniversary",
     "image": "/images/templates/Anniversary.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Kỷ Niệm",
-      "text": "Chúc hai bạn luôn bên nhau bền lâu, ngày càng hạnh phúc."
+      "title": "Happy Anniversary!",
+      "text": "Wishing you both a lasting bond and ever-growing happiness together."
     }
   },
   {
     "id": "tet",
-    "name": "Tết Nguyên Đán",
-    "category": "Tết",
+    "name": "Lunar New Year",
+    "category": "Lunar New Year",
     "image": "/images/templates/new-year.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Năm Mới (Tết)",
-      "text": "Chúc An Khang Thịnh Vượng – Vạn Sự Như Ý – Tài Lộc Đầy Nhà."
+      "title": "Happy Lunar New Year!",
+      "text": "Wishing you prosperity, good fortune, and a home filled with blessings."
     }
   },
   {
     "id": "womens-day",
-    "name": "8/3 hoặc 20/10",
-    "category": "Ngày Phụ Nữ",
+    "name": "Women's Day",
+    "category": "Women's Day",
     "image": "/images/templates/pastel.png",
     "free": true,
     "card": {
-      "title": "Chúc Mừng Ngày Phụ Nữ",
-      "text": "Chúc bạn luôn xinh đẹp, tự tin, hạnh phúc và được yêu thương mỗi ngày."
+      "title": "Happy Women's Day!",
+      "text": "Wishing you beauty, confidence, happiness, and love every single day."
     }
   },
   {
     "id": "20-11",
-    "name": "20/11",
-    "category": "20/11",
+    "name": "Teacher's Day",
+    "category": "Teacher's Day",
     "image": "/images/templates/20-11.png",
     "free": true,
     "card": {
-      "title": "Tri Ân Thầy Cô",
-      "text": "Em xin cảm ơn thầy/cô vì tận tâm dạy dỗ. Kính chúc thầy/cô luôn mạnh khỏe và hạnh phúc."
+      "title": "Thank You, Dear Teacher",
+      "text": "Thank you for your dedication and guidance. Wishing you good health and happiness always."
     }
   }
 ]

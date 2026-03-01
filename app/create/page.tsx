@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -46,6 +46,59 @@ export default function CreatePage() {
     suggestedBackgroundColor?: string
   } | undefined>(undefined)
   const [error, setError] = useState("")
+  const [progress, setProgress] = useState(0)
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Progress simulation: ramps up fast at first, then slows down (never reaches 100% until done)
+  const startProgress = useCallback(() => {
+    setProgress(0)
+    const startTime = Date.now()
+    const duration = 30000 // max ~30s to reach ~92%
+    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const t = Math.min(elapsed / duration, 1)
+      // Ease-out curve: fast start, slow finish, caps at 92%
+      const value = Math.round(92 * (1 - Math.pow(1 - t, 3)))
+      setProgress(value)
+      if (t >= 1 && progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+    }, 200)
+  }, [])
+
+  const stopProgress = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    setProgress(100)
+    // Reset after a brief "done" flash
+    setTimeout(() => setProgress(0), 400)
+  }, [])
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    }
+  }, [])
+
+  // Helper to get step label based on progress
+  const getPromptStepLabel = (p: number) => {
+    if (p < 25) return "Analyzing your request..."
+    if (p < 60) return "Generating suggestions..."
+    if (p < 85) return "Refining results..."
+    return "Almost there..."
+  }
+
+  const getCardStepLabel = (p: number) => {
+    if (p < 20) return "Preparing your card..."
+    if (p < 50) return "Generating image with AI..."
+    if (p < 75) return "Composing your message..."
+    if (p < 90) return "Applying final touches..."
+    return "Almost done..."
+  }
 
   useEffect(() => {
     if (!loading && !user) {
@@ -60,12 +113,12 @@ export default function CreatePage() {
       if (editCardDataStr) {
         try {
           const editCardData = JSON.parse(editCardDataStr)
-          
+
           // Store card ID for update
           if (editCardData.id) {
             setCardId(editCardData.id)
           }
-          
+
           // Set card data directly (skip prompt generation)
           setCardData({
             title: editCardData.title,
@@ -80,11 +133,11 @@ export default function CreatePage() {
             textContainerOpacity: editCardData.textContainerOpacity,
             textColor: editCardData.textColor,
           })
-          
+
           // Show editor directly
           setShowEditor(true)
           setShowPreview(true)
-          
+
           // Clear sessionStorage
           sessionStorage.removeItem("editCardData")
         } catch (error) {
@@ -103,6 +156,7 @@ export default function CreatePage() {
     setError("")
     setPrompts([])
     setSelectedPrompt(null)
+    startProgress()
 
     try {
       const promptsResponse = await fetch("/api/ai/generate", {
@@ -126,6 +180,7 @@ export default function CreatePage() {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate prompts. Please try again."
       setError(errorMessage)
     } finally {
+      stopProgress()
       setIsGeneratingPrompts(false)
     }
   }
@@ -134,6 +189,7 @@ export default function CreatePage() {
     setSelectedPrompt(prompt)
     setIsGenerating(true)
     setError("")
+    startProgress()
 
     try {
       const response = await fetch("/api/ai/generate", {
@@ -153,10 +209,10 @@ export default function CreatePage() {
         suggestedBackgroundColor?: string
       } = {}
       const contentType = response.headers.get("content-type")
-      
+
       // Read response as text first (can only read body once)
       const responseText = await response.text()
-      
+
       if (contentType && contentType.includes("application/json")) {
         if (responseText.trim()) {
           try {
@@ -179,10 +235,10 @@ export default function CreatePage() {
         // Check if data is actually populated
         const hasErrorData = data && typeof data === 'object' && Object.keys(data).length > 0 && (data.error || data.details || data.message)
         const isEmptyResponse = !responseText || responseText.trim().length === 0
-        
+
         // Build error message with priority: error > details > message > fallback
         let errorMessage = `Failed to generate card (${response.status} ${response.statusText})`
-        
+
         if (hasErrorData) {
           errorMessage = data.error || data.details || data.message || errorMessage
         } else if (!isEmptyResponse) {
@@ -191,7 +247,7 @@ export default function CreatePage() {
         } else {
           errorMessage = `Server error: ${response.status} ${response.statusText}. The server returned an empty response.`
         }
-        
+
         // Log detailed error information
         const errorInfo: {
           status: number
@@ -210,14 +266,14 @@ export default function CreatePage() {
           responseBodyLength: responseText?.length || 0,
           isEmptyResponse: isEmptyResponse
         }
-        
+
         // Only include response body if it's not too long
         if (responseText && responseText.length < 500) {
           errorInfo.responseBody = responseText
         } else if (responseText) {
           errorInfo.responseBodyPreview = responseText.substring(0, 200) + "..."
         }
-        
+
         // Include parsed data if available
         if (data && typeof data === 'object' && Object.keys(data).length > 0) {
           errorInfo.parsedData = data
@@ -225,7 +281,7 @@ export default function CreatePage() {
         } else {
           errorInfo.parsedData = "(empty or invalid)"
         }
-        
+
         console.error("API Error:", errorInfo)
         throw new Error(errorMessage)
       }
@@ -233,7 +289,7 @@ export default function CreatePage() {
       console.log("Generated data received:", data)
       console.log("Image URL:", data.imageUrl)
       setGeneratedData(data)
-      
+
       // Initialize card data from generated data
       setCardData({
         title: data.title || "Greetings!",
@@ -248,7 +304,7 @@ export default function CreatePage() {
         textContainerOpacity: data.imageUrl ? 0.6 : undefined,
         textColor: data.imageUrl ? "#ffffff" : undefined,
       })
-      
+
       // Go directly to editor after creation
       setShowEditor(true)
     } catch (err: unknown) {
@@ -256,6 +312,7 @@ export default function CreatePage() {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate card. Please try again."
       setError(errorMessage)
     } finally {
+      stopProgress()
       setIsGenerating(false)
     }
   }
@@ -284,11 +341,11 @@ export default function CreatePage() {
         userId: user.id, // Pass user ID from auth (we still need it to identify user)
         initialRequest: selectedPrompt || userRequest || null, // Save the prompt used
       }
-      
+
       // Use PUT for update if cardId exists, otherwise POST for create
       const method = cardId ? "PUT" : "POST"
       const url = cardId ? `/api/cards/${cardId}` : "/api/cards"
-      
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -303,14 +360,14 @@ export default function CreatePage() {
       } else {
         // Try to get error message from response
         let errorMessage = `Failed to save card (${response.status} ${response.statusText})`
-        
+
         // Log status first
         console.error("API Error Status:", response.status, response.statusText)
-        
+
         try {
           const responseText = await response.text()
           console.error("API Error Response (raw text):", responseText)
-          
+
           if (responseText && responseText.trim()) {
             try {
               const errorData = JSON.parse(responseText)
@@ -326,7 +383,7 @@ export default function CreatePage() {
         } catch (parseError) {
           console.error("Error parsing error response:", parseError)
         }
-        
+
         throw new Error(errorMessage)
       }
     } catch (error) {
@@ -353,7 +410,7 @@ export default function CreatePage() {
   // Helper function to get text color based on background
   const getTextColor = (backgroundColor: string): string => {
     const lightColors = [
-      "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0", 
+      "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0",
       "#f0fff4", "#f0f9ff", "#fff0f5", "#fff5f5", "#faf5ff"
     ]
     if (lightColors.includes(backgroundColor.toLowerCase())) {
@@ -452,79 +509,107 @@ export default function CreatePage() {
                     {isGeneratingPrompts ? (
                       <span className="flex items-center gap-2">
                         <span className="animate-spin">⏳</span>
-                        Đang tạo các gợi ý...
+                        {getPromptStepLabel(progress)} {progress}%
                       </span>
                     ) : (
-                      "Tạo gợi ý"
+                      "Generate Suggestions"
                     )}
                   </Button>
+                  {/* Progress bar for prompt generation */}
+                  {isGeneratingPrompts && (
+                    <div className="mt-3 space-y-1">
+                      <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 transition-all duration-300 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        {getPromptStepLabel(progress)}
+                      </p>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>
 
-            
+
           </div>
           {/* Prompts Section - Separate container with max-w-4xl */}
-            {prompts.length > 0 && (
-              <div className="max-w-8xl mx-auto mt-8">
-                <Card className="border-2 border-blue-200">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div className="mb-4">
-                        <h3 className="text-lg font-semibold mb-2">Chọn 1 trong 3 gợi ý sau:</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Yêu cầu của bạn: &quot;{userRequest}&quot;
+          {prompts.length > 0 && (
+            <div className="max-w-8xl mx-auto mt-8">
+              <Card className="border-2 border-blue-200">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold mb-2">Choose one of the 3 suggestions below:</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Your request: &quot;{userRequest}&quot;
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {prompts.map((prompt, index) => (
+                        <Button
+                          key={index}
+                          variant={selectedPrompt === prompt ? "default" : "outline"}
+                          className="text-left h-auto py-4 px-4 whitespace-normal flex flex-col items-start"
+                          onClick={() => handlePromptSelect(prompt)}
+                          disabled={isGenerating}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
+                              {index + 1}
+                            </span>
+                            <span className="text-xs font-semibold">Suggestion {index + 1}</span>
+                          </div>
+                          <span className="text-sm mt-2">{prompt}</span>
+                        </Button>
+                      ))}
+                    </div>
+                    {error && (
+                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                        <p className="text-sm text-destructive">{error}</p>
+                      </div>
+                    )}
+                    {isGenerating && (
+                      <div className="py-6 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-blue-600 font-medium flex items-center gap-2">
+                            <span className="animate-spin">⏳</span>
+                            {getCardStepLabel(progress)}
+                          </span>
+                          <span className="text-blue-700 font-bold tabular-nums">{progress}%</span>
+                        </div>
+                        <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 transition-all duration-300 ease-out relative"
+                            style={{ width: `${progress}%` }}
+                          >
+                            <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Please wait while we create your card...
                         </p>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {prompts.map((prompt, index) => (
-                          <Button
-                            key={index}
-                            variant={selectedPrompt === prompt ? "default" : "outline"}
-                            className="text-left h-auto py-4 px-4 whitespace-normal flex flex-col items-start"
-                            onClick={() => handlePromptSelect(prompt)}
-                            disabled={isGenerating}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-bold">
-                                {index + 1}
-                              </span>
-                              <span className="text-xs font-semibold">Gợi ý {index + 1}</span>
-                            </div>
-                            <span className="text-sm mt-2">{prompt}</span>
-                          </Button>
-                        ))}
-                      </div>
-                      {error && (
-                        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                          <p className="text-sm text-destructive">{error}</p>
-                        </div>
-                      )}
-                      {isGenerating && (
-                        <div className="text-center py-4">
-                          <span className="flex items-center justify-center gap-2 text-blue-600">
-                            <span className="animate-spin">⏳</span>
-                            Đang tạo ảnh với AI...
-                          </span>
-                        </div>
-                      )}
-                      <Button
-                        variant="ghost"
-                        className="w-full"
-                        onClick={() => {
-                          setPrompts([])
-                          setSelectedPrompt(null)
-                          setError("")
-                        }}
-                        disabled={isGenerating}
-                      >
-                        Quay lại
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                    )}
+                    <Button
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => {
+                        setPrompts([])
+                        setSelectedPrompt(null)
+                        setError("")
+                      }}
+                      disabled={isGenerating}
+                    >
+                      Go Back
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
     )
@@ -682,36 +767,36 @@ export default function CreatePage() {
 
   // Editor mode - show full editor
   if (showEditor && cardData) {
-  return (
-    <div className="min-h-screen">
-      <Navbar />
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setShowEditor(false)
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8">
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowEditor(false)
                 setCardData(null)
                 setGeneratedData(undefined)
-              setUserRequest("")
-              setPrompts([])
-              setSelectedPrompt(null)
-            }}
-            className="mb-4"
-          >
+                setUserRequest("")
+                setPrompts([])
+                setSelectedPrompt(null)
+              }}
+              className="mb-4"
+            >
               ← Back to Create
-          </Button>
-        </div>
-        <CardEditor 
-          onSave={handleSave} 
-          initialRequest={userRequest}
-          generatedData={generatedData}
+            </Button>
+          </div>
+          <CardEditor
+            onSave={handleSave}
+            initialRequest={userRequest}
+            generatedData={generatedData}
             initialData={cardData}
-        />
-      </main>
+          />
+        </main>
         <Footer />
-    </div>
-  )
+      </div>
+    )
   }
 
   return null

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,20 +48,20 @@ interface CardEditorProps {
 // Helper function to determine text color based on background color
 function getTextColor(backgroundColor: string): string {
   const lightColors = [
-    "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0", 
+    "#ffffff", "#fafafa", "#f0f0f0", "#fff5e6", "#fffef0",
     "#f0fff4", "#f0f9ff", "#fff0f5", "#fff5f5", "#faf5ff"
   ]
-  
+
   if (lightColors.includes(backgroundColor.toLowerCase())) {
     return "#1a1a1a"
   }
-  
+
   const hex = backgroundColor.replace("#", "")
   const r = parseInt(hex.substr(0, 2), 16)
   const g = parseInt(hex.substr(2, 2), 16)
   const b = parseInt(hex.substr(4, 2), 16)
   const brightness = (r * 299 + g * 587 + b * 114) / 1000
-  
+
   return brightness > 128 ? "#1a1a1a" : "#ffffff"
 }
 
@@ -104,6 +104,47 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
   const [isSearchingImage, setIsSearchingImage] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
+  const [regenProgress, setRegenProgress] = useState(0)
+  const regenIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const startRegenProgress = useCallback(() => {
+    setRegenProgress(0)
+    const startTime = Date.now()
+    const duration = 30000
+    if (regenIntervalRef.current) clearInterval(regenIntervalRef.current)
+    regenIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const t = Math.min(elapsed / duration, 1)
+      const value = Math.round(92 * (1 - Math.pow(1 - t, 3)))
+      setRegenProgress(value)
+      if (t >= 1 && regenIntervalRef.current) {
+        clearInterval(regenIntervalRef.current)
+      }
+    }, 200)
+  }, [])
+
+  const stopRegenProgress = useCallback(() => {
+    if (regenIntervalRef.current) {
+      clearInterval(regenIntervalRef.current)
+      regenIntervalRef.current = null
+    }
+    setRegenProgress(100)
+    setTimeout(() => setRegenProgress(0), 400)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (regenIntervalRef.current) clearInterval(regenIntervalRef.current)
+    }
+  }, [])
+
+  const getRegenStepLabel = (p: number) => {
+    if (p < 20) return "Preparing your card..."
+    if (p < 50) return "Generating image with AI..."
+    if (p < 75) return "Composing your message..."
+    if (p < 90) return "Applying final touches..."
+    return "Almost done..."
+  }
 
   useEffect(() => {
     if (initialData) {
@@ -166,21 +207,22 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
   const handleRegenerate = async () => {
     if (!initialRequest || !initialRequest.trim()) {
       // Fallback to old behavior if no request
-    const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
-    const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
-    const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
-    const randomColor = colors[Math.floor(Math.random() * colors.length)]
-    
-    setCardData({
-      ...cardData,
-      fontFamily: randomFont,
-      backgroundColor: randomColor,
-      fontSize: Math.floor(Math.random() * 20) + 20,
-    })
+      const fonts = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana"]
+      const colors = ["#ffffff", "#f0f0f0", "#fff5e6", "#e6f3ff", "#ffe6f0"]
+      const randomFont = fonts[Math.floor(Math.random() * fonts.length)]
+      const randomColor = colors[Math.floor(Math.random() * colors.length)]
+
+      setCardData({
+        ...cardData,
+        fontFamily: randomFont,
+        backgroundColor: randomColor,
+        fontSize: Math.floor(Math.random() * 20) + 20,
+      })
       return
     }
 
     setIsRegenerating(true)
+    startRegenProgress()
     try {
       const response = await fetch("/api/ai/generate", {
         method: "POST",
@@ -247,6 +289,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
       console.error("Error regenerating card:", error)
       alert(error instanceof Error ? error.message : "Failed to regenerate card")
     } finally {
+      stopRegenProgress()
       setIsRegenerating(false)
     }
   }
@@ -355,16 +398,31 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
             </div>
           </div>
 
-          <div className="pt-4 border-t">
-            <Button 
-              onClick={handleRegenerate} 
-              variant="outline" 
+          <div className="pt-4 border-t space-y-3">
+            <Button
+              onClick={handleRegenerate}
+              variant="outline"
               className="w-full"
               disabled={isRegenerating}
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRegenerating ? "animate-spin" : ""}`} />
-              {isRegenerating ? "Generating..." : "Re-generate"}
+              {isRegenerating ? `${getRegenStepLabel(regenProgress)} ${regenProgress}%` : "Re-generate"}
             </Button>
+            {isRegenerating && (
+              <div className="space-y-1">
+                <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 transition-all duration-300 ease-out relative"
+                    style={{ width: `${regenProgress}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full" />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {getRegenStepLabel(regenProgress)}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -520,9 +578,9 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
             />
             {backgroundImageUrl && (
               <div className="mt-2">
-                <img 
-                  src={backgroundImageUrl} 
-                  alt="Background preview" 
+                <img
+                  src={backgroundImageUrl}
+                  alt="Background preview"
                   className="w-full h-32 object-cover rounded-md border"
                 />
                 <Button
@@ -547,7 +605,7 @@ export function CardEditor({ initialData, initialRequest, generatedData, onSave,
               <div className="space-y-2">
                 <Label>Text Container Background</Label>
                 <p className="text-xs text-muted-foreground">Background color for text box (helps text stand out on images)</p>
-          <div className="flex gap-2">
+                <div className="flex gap-2">
                   <Input
                     type="color"
                     value={cardData.textContainerBackground || "#000000"}
