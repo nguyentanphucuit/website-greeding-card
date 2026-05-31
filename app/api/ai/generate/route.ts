@@ -277,18 +277,12 @@ Make it visually stunning with beautiful, complementary colors that will make te
     let imageUrl: string | null = null
     let imageDescription: string = ""
     
-    // Helper function to get fallback image URL
+    // Helper function to get fallback image URL.
+    // Uses Pollinations.ai — free AI image generation, no API key required.
+    // (The old source.unsplash.com endpoint was shut down by Unsplash in 2024.)
     const getFallbackImageUrl = () => {
-      const lowerRequest = userRequest.toLowerCase()
-      let fallbackKeywords = "celebration,card"
-      if (lowerRequest.includes("birthday") || lowerRequest.includes("sinh nhật")) {
-        fallbackKeywords = "birthday,cake,celebration"
-      } else if (lowerRequest.includes("wedding") || lowerRequest.includes("cưới")) {
-        fallbackKeywords = "wedding,romantic,flowers"
-      } else if (lowerRequest.includes("christmas") || lowerRequest.includes("giáng sinh")) {
-        fallbackKeywords = "christmas,holiday,snow"
-      }
-      return `https://source.unsplash.com/800x600/?${encodeURIComponent(fallbackKeywords)}`
+      const fallbackPrompt = (selectedPrompt || imagePrompt).slice(0, 500)
+      return `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=800&height=600&nologo=true`
     }
     
     // Try different methods for image generation
@@ -300,95 +294,34 @@ Make it visually stunning with beautiful, complementary colors that will make te
     let imageResponse = null
     const triedMethods: string[] = []
     
-    // Method 1: Try Imagen 4.0 using generateImages API (correct method)
-    try {
-      console.log("Trying Imagen 4.0 (imagen-4.0-generate-001) with generateImages...")
-      triedMethods.push("imagen-4.0-generate-001:generateImages")
-      
-      const imagenResponse = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt: imagePrompt,
-        config: {
-          numberOfImages: 1, // Generate 1 image for greeting card
-        },
-      })
-      
-      console.log("✅ Imagen 4.0 generateImages successful!")
-      
-      // Extract image from response
-      if (imagenResponse.generatedImages && imagenResponse.generatedImages.length > 0) {
-        const generatedImage = imagenResponse.generatedImages[0]
-        if (generatedImage.image && generatedImage.image.imageBytes) {
-          const imageBytes = generatedImage.image.imageBytes
-          const mimeType = generatedImage.image.mimeType || "image/png"
-          
-          // Convert base64 to data URL for direct display (will be uploaded to Supabase when saved)
-          imageUrl = `data:${mimeType};base64,${imageBytes}`
-          console.log("✅ Image generated successfully from Imagen 4.0, size:", imageBytes.length, "bytes")
-          // Image already extracted, no need to process further
-          imageResponse = null // Set to null since we already got the image
-        } else {
-          console.log("No imageBytes found in Imagen response")
-        }
-      } else {
-        console.log("No generatedImages found in Imagen response")
-      }
-    } catch (imagenError) {
-      const errorMsg = imagenError instanceof Error ? imagenError.message : String(imagenError)
-      console.log(`❌ Imagen 4.0 generateImages failed:`, errorMsg.includes("quota") ? "Quota exceeded" : errorMsg.includes("404") ? "Model not found" : errorMsg.substring(0, 100))
-    }
-    
-    // Method 2: Try chat API if Imagen failed
-    if (!imageResponse) {
+    // Use gemini-2.5-flash-image (Nano Banana) — the only image generation model
+    // with a free tier. Imagen 4.x and gemini-3-pro-image are paid-only, so we
+    // don't call them when running on a free API key.
+    // NOTE: responseModalities must include 'IMAGE' or the model returns text only.
+    const imageModels = [
+      "gemini-2.5-flash-image",
+      "gemini-2.5-flash-image-preview",
+      "gemini-2.0-flash-preview-image-generation",
+    ]
+
+    for (const modelName of imageModels) {
       try {
-        console.log("Trying chat API with gemini-3-pro-image-preview...")
-        triedMethods.push("chat:gemini-3-pro-image-preview")
-        const chat = ai.chats.create({
-          model: "gemini-3-pro-image-preview",
+        console.log(`Trying image model: ${modelName}`)
+        triedMethods.push(`model:${modelName}`)
+        imageResponse = await ai.models.generateContent({
+          model: modelName,
+          contents: imagePrompt,
           config: {
-            responseModalities: ['TEXT', 'IMAGE'],
+            responseModalities: ['IMAGE'],
           },
         })
-        imageResponse = await chat.sendMessage({ message: imagePrompt })
-        console.log("✅ Chat API successful!")
-      } catch (chatError) {
-        const errorMsg = chatError instanceof Error ? chatError.message : String(chatError)
-        console.log(`❌ Chat API failed:`, errorMsg.includes("quota") ? "Quota exceeded" : errorMsg.substring(0, 100))
-      }
-    }
-    
-    // Method 3: Try direct model calls if previous methods failed
-    if (!imageResponse) {
-      const imageModels = [
-        "gemini-2.5-flash-image",
-        "gemini-2.0-flash-exp-image", 
-        "gemini-1.5-flash-image",
-        "gemini-2.5-flash-preview-image"
-      ]
-      
-      for (const modelName of imageModels) {
-        try {
-          console.log(`Trying image model: ${modelName}`)
-          triedMethods.push(`model:${modelName}`)
-          imageResponse = await ai.models.generateContent({
-            model: modelName,
-            contents: imagePrompt,
-          })
-          console.log(`✅ Successfully called model: ${modelName}`)
-          break // Success, exit loop
-        } catch (modelError) {
-          const errorMsg = modelError instanceof Error ? modelError.message : String(modelError)
-          console.log(`❌ Model ${modelName} failed:`, errorMsg.includes("quota") ? "Quota exceeded" : errorMsg.substring(0, 100))
-          
-          // If it's not a quota/availability error, continue trying
-          if (!errorMsg.includes("quota") && !errorMsg.includes("429") && !errorMsg.includes("not found") && !errorMsg.includes("404")) {
-            // Unexpected error, might be a different issue
-            console.log("Unexpected error, continuing to next model...")
-            continue
-          }
-          // Quota/availability error, try next model
-          continue
-        }
+        console.log(`✅ Successfully called model: ${modelName}`)
+        break // Success, exit loop
+      } catch (modelError) {
+        const errorMsg = modelError instanceof Error ? modelError.message : String(modelError)
+        console.log(`❌ Model ${modelName} failed:`, errorMsg.includes("quota") ? "Quota exceeded" : errorMsg.substring(0, 120))
+        imageResponse = null
+        continue
       }
     }
     
