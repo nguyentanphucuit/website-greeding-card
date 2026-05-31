@@ -387,8 +387,17 @@ export default function SignInPage() {
               onClick={() => setIsSignUp(!isSignUp)}
               className="text-sm text-gray-600"
             >
-              Already have an account?{" "}
-              <span className="text-blue-600 hover:underline font-medium">Sign In</span>
+              {isSignUp ? (
+                <>
+                  Already have an account?{" "}
+                  <span className="text-blue-600 hover:underline font-medium">Sign In</span>
+                </>
+              ) : (
+                <>
+                  Don&apos;t have an account?{" "}
+                  <span className="text-blue-600 hover:underline font-medium">Sign Up</span>
+                </>
+              )}
             </button>
           </div>
         </div>
