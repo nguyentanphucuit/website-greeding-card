@@ -278,11 +278,13 @@ Make it visually stunning with beautiful, complementary colors that will make te
     let imageDescription: string = ""
     
     // Helper function to get fallback image URL.
-    // Uses Pollinations.ai — free AI image generation, no API key required.
-    // (The old source.unsplash.com endpoint was shut down by Unsplash in 2024.)
+    // Uses Picsum — reliable free random photo, no API key, always available.
+    // (source.unsplash.com was shut down in 2024; Pollinations now gates
+    //  anonymous use behind payment / per-IP queue limits, so neither is usable
+    //  as a free fallback. Picsum isn't theme-aware but always returns an image.)
     const getFallbackImageUrl = () => {
-      const fallbackPrompt = (selectedPrompt || imagePrompt).slice(0, 500)
-      return `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=800&height=600&nologo=true`
+      const seed = encodeURIComponent((userRequest || "card").slice(0, 40).trim() || "card")
+      return `https://picsum.photos/seed/${seed}/800/600`
     }
     
     // Try different methods for image generation
