@@ -300,8 +300,6 @@ Make it visually stunning with beautiful, complementary colors that will make te
     // NOTE: responseModalities must include 'IMAGE' or the model returns text only.
     const imageModels = [
       "gemini-2.5-flash-image",
-      "gemini-2.5-flash-image-preview",
-      "gemini-2.0-flash-preview-image-generation",
     ]
 
     for (const modelName of imageModels) {
