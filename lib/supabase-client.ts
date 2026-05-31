@@ -12,9 +12,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = supabaseUrl && supabaseAnonKey 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storage: undefined,
+        // Persist the session in localStorage so login survives page reloads.
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
       }
     })
   : null as any
